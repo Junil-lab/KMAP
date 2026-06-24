@@ -1,0 +1,85 @@
+Bootstrap: docker
+From: condaforge/mambaforge:23.3.1-1
+
+%labels
+    Author      K_map PacBio WGS Pipeline
+    Version     2.0.0
+    Description PacBio HiFi WGS — all tools in one container
+    Tools       pbmm2=26.1.99 samtools=1.23.1 bcftools=1.23.1 \
+                hiphase=1.6.0 trgt=5.0.0 sawfish=2.2.1 \
+                pb-cpg-tools=3.0.0 jasmine=2.7.99 \
+                annotsv=3.5.8 bedtools=2.31.1
+
+%post
+    #!/bin/bash
+    set -eu
+
+    # ── 기본 시스템 패키지 ────────────────────────────────────
+    apt-get update -qq && apt-get install -y --no-install-recommends \
+        wget curl git ca-certificates \
+        libssl-dev zlib1g-dev libbz2-dev liblzma-dev \
+        libncurses5-dev libcurl4-openssl-dev \
+        python3-pip build-essential \
+        && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+    # ── conda 환경 생성 (bioconda + conda-forge) ─────────────
+    conda config --add channels defaults
+    conda config --add channels bioconda
+    conda config --add channels conda-forge
+    conda config --set channel_priority strict
+
+    mamba create -y -n kmap \
+        python=3.10 \
+        pbmm2=26.1.99 \
+        samtools=1.23.1 \
+        bcftools=1.23.1 \
+        htslib=1.23.1 \
+        bedtools=2.31.1 \
+        hiphase=1.6.0 \
+        trgt=5.0.0 \
+        sawfish=2.2.1 \
+        "pb-cpg-tools=3.0.0" \
+        annotsv=3.5.8 \
+        minimap2 \
+        pysam \
+        biopython \
+        numpy \
+        2>&1
+
+    # ── jasmine (PacBio kinetics methylation caller) ─────────
+    # bioconda의 jasmine (SV merger 아님 — PacBio jasmine)
+    mamba install -y -n kmap -c hcc jasmine=2.7.99 2>/dev/null || \
+    mamba install -y -n kmap -c bioconda jasmine 2>/dev/null || true
+
+    # ── sTELLeR (TE caller) — pip 의존성만 설치 ──────────────
+    /opt/conda/envs/kmap/bin/pip install pysam biopython scikit-learn matplotlib numpy 2>/dev/null || true
+
+    # ── conda 캐시 정리 ───────────────────────────────────────
+    conda clean -afy
+
+    # ── PATH 설정 ─────────────────────────────────────────────
+    echo ". /opt/conda/etc/profile.d/conda.sh && conda activate kmap" \
+        >> /etc/bash.bashrc
+    echo "export PATH=/opt/conda/envs/kmap/bin:\$PATH" \
+        >> /environment
+
+%environment
+    export PATH=/opt/conda/envs/kmap/bin:$PATH
+    export CONDA_DEFAULT_ENV=kmap
+
+%runscript
+    exec "$@"
+
+%test
+    echo "=== kmap_pbwgs v2 container test ==="
+    pbmm2       --version 2>&1 | head -1
+    samtools    --version 2>&1 | head -1
+    bcftools    --version 2>&1 | head -1
+    hiphase     --version 2>&1 | head -1
+    trgt        --version 2>&1 | head -1
+    sawfish     --version 2>&1 | head -1
+    aligned_bam_to_cpg_scores --version 2>&1 | head -1
+    bedtools    --version 2>&1 | head -1
+    AnnotSV     --version 2>&1 | head -2
+    python3     --version
+    echo "=== all tools OK ==="

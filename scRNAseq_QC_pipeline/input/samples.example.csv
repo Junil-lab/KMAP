@@ -1,0 +1,3 @@
+sample_id,fastqs,sample,transcriptome,start_step,raw_h5,cellbender_h5,expected_cells,chemistry,create_bam,include_introns,localmem_gb,cuda_device,cellbender_expected_cells,cellbender_total_droplets_included,expected_doublet_rate,expected_doublets
+Sample8,/home/Data_Drive_8TB_4/wooju789/01_Fastq/Sample8,8,/path/to/refdata-gex-GRCm39-2024-A,cellranger,,,,auto,true,false,200,0,,,,
+H32N,,,,qc,,/home/Data_Drive_8TB_2/CRC_2026/KRAS_project/2.Cellbender/H30-H36/H32N_O/cellbender_cleaned_filtered.h5,,,,,,0,,,,

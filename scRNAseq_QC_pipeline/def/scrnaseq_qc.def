@@ -1,0 +1,72 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%labels
+    Author      K_map scRNA-seq QC Pipeline
+    Version     1.0.1
+    Description Self-contained Scanpy/scVI/SOLO environment for scRNA-seq QC and doublet removal
+    Tools       python=3.12 scanpy=1.11.5 scvi-tools=1.4.0.post1 torch=2.9.0+cu128 solo-sc=1.2
+
+%files
+    /home/Data_Drive_8TB/cwonkim99/.conda/envs/solo /home/Data_Drive_8TB/cwonkim99/.conda/envs/solo
+    /home/Data_Drive_8TB_2/CRC_2026/KRAS_project/3.SOLO/solo_260303/solo /home/Data_Drive_8TB_2/CRC_2026/KRAS_project/3.SOLO/solo_260303/solo
+
+%post
+    #!/bin/bash
+    set -eu
+
+    apt-get update -qq
+    apt-get install -y --no-install-recommends \
+        bash \
+        ca-certificates \
+        coreutils \
+        libgcc-s1 \
+        libglib2.0-0 \
+        libgl1 \
+        libgomp1 \
+        libsm6 \
+        libstdc++6 \
+        libxext6 \
+        libxrender1 \
+        locales
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+
+    mkdir -p /tmp/numba_cache /tmp/matplotlib /usr/local/bin
+    ln -sf /home/Data_Drive_8TB/cwonkim99/.conda/envs/solo/bin/python /usr/local/bin/python
+    ln -sf /home/Data_Drive_8TB/cwonkim99/.conda/envs/solo/bin/python /usr/local/bin/python3
+    ln -sf /home/Data_Drive_8TB/cwonkim99/.conda/envs/solo/bin/solo /usr/local/bin/solo
+    ln -sf /home/Data_Drive_8TB/cwonkim99/.conda/envs/solo/bin/hashsolo /usr/local/bin/hashsolo
+
+%environment
+    export PATH=/home/Data_Drive_8TB/cwonkim99/.conda/envs/solo/bin:/usr/local/bin:$PATH
+    export CONDA_PREFIX=/home/Data_Drive_8TB/cwonkim99/.conda/envs/solo
+    export CONDA_DEFAULT_ENV=solo
+    export LD_LIBRARY_PATH=/home/Data_Drive_8TB/cwonkim99/.conda/envs/solo/lib:$LD_LIBRARY_PATH
+    export PYTHONNOUSERSITE=1
+    export OPENBLAS_NUM_THREADS=1
+    export OMP_NUM_THREADS=1
+    export MKL_NUM_THREADS=1
+    export NUMEXPR_NUM_THREADS=1
+    export NUMBA_CACHE_DIR=/tmp/numba_cache
+    export MPLCONFIGDIR=/tmp/matplotlib
+
+%runscript
+    exec "$@"
+
+%test
+    python3 --version
+    python3 - << 'PYEOF'
+import importlib.metadata as md
+import scanpy as sc
+import anndata as ad
+import torch
+import scvi
+import solo.solo
+print("scanpy", sc.__version__)
+print("anndata", ad.__version__)
+print("torch", torch.__version__)
+print("scvi-tools", scvi.__version__)
+print("solo-sc", md.version("solo-sc"))
+PYEOF
+    solo --version

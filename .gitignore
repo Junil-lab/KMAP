@@ -1,0 +1,26 @@
+# Nextflow 실행 캐시/로그
+.nextflow/
+.nextflow.log*
+work/
+
+# 대용량 바이너리 (별도 배포)
+containers/*.sif
+
+# 레퍼런스 데이터 (별도 배포)
+resources/ref/
+
+# 파이프라인 결과물
+results/
+
+# 샘플시트 (경로가 머신마다 다름) — samples.csv 템플릿만 추적
+input/kmap_*.csv
+input/hg002_*.csv
+
+# 대용량 BAM 파일
+input/*.bam
+input/*.bam.bai
+
+# 시스템 파일
+.DS_Store
+containers/build_main.log
+containers/*.log

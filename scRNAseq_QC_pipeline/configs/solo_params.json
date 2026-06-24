@@ -1,0 +1,13 @@
+{
+  "n_hidden": 384,
+  "n_latent": 64,
+  "n_layers": 1,
+  "cl_hidden": 128,
+  "cl_layers": 1,
+  "dropout_rate": 0.2,
+  "learning_rate": 0.001,
+  "valid_pct": 0.1,
+  "check_val_every_n_epoch": 1,
+  "batch_size": 128,
+  "patience": 8
+}

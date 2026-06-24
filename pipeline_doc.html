@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K_map PacBio HiFi WGS Pipeline v2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f1117; color: #e2e8f0; line-height: 1.6; }
+
+  .hero {
+    background: linear-gradient(135deg, #1a1f2e 0%, #0f3460 50%, #162447 100%);
+    padding: 48px 40px 36px;
+    border-bottom: 2px solid #2d3748;
+  }
+  .hero h1 { font-size: 2rem; font-weight: 700; color: #63b3ed; letter-spacing: 0.5px; }
+  .hero p  { color: #a0aec0; margin-top: 8px; font-size: 0.95rem; }
+  .badges  { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .badge   { padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+  .badge-blue   { background: #1e40af; color: #93c5fd; }
+  .badge-green  { background: #14532d; color: #86efac; }
+  .badge-purple { background: #4c1d95; color: #c4b5fd; }
+  .badge-orange { background: #7c2d12; color: #fdba74; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+
+  .section-title {
+    font-size: 1.1rem; font-weight: 700; color: #63b3ed;
+    border-left: 4px solid #3182ce; padding-left: 12px;
+    margin: 36px 0 20px;
+  }
+
+  .run-card {
+    background: #1a202c; border: 1px solid #2d3748; border-radius: 10px;
+    padding: 20px 24px; margin-bottom: 20px;
+  }
+  .run-card h3 { font-size: 0.9rem; color: #a0aec0; margin-bottom: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .code-block {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 16px 20px; font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.85rem; color: #e6edf3; overflow-x: auto; line-height: 1.9;
+    white-space: pre;
+  }
+  .code-block .cmd  { color: #79c0ff; }
+  .code-block .flag { color: #ffa657; }
+  .code-block .val  { color: #a5d6ff; }
+  .code-block .cmt  { color: #6a737d; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th { background: #2d3748; color: #a0aec0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: left; }
+  td { padding: 9px 14px; border-bottom: 1px solid #2d3748; font-size: 0.875rem; }
+  tr:last-child td { border-bottom: none; }
+  .mono { font-family: 'Consolas', monospace; font-size: 0.82rem; color: #a5d6ff; }
+  .tag  { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+  .tag-req  { background: #7f1d1d; color: #fca5a5; }
+  .tag-opt  { background: #1a3a1a; color: #86efac; }
+  .tag-auto { background: #1e3a5f; color: #93c5fd; }
+
+  .pipeline {
+    display: flex; flex-direction: column; align-items: center; gap: 0;
+    margin: 12px 0;
+  }
+  .step-group {
+    display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap;
+  }
+  .step {
+    background: #1a202c; border: 1px solid #2d3748; border-radius: 10px;
+    padding: 14px 20px; min-width: 200px; text-align: center;
+    transition: border-color 0.2s;
+  }
+  .step:hover { border-color: #63b3ed; }
+  .step-num  { font-size: 0.7rem; color: #718096; font-weight: 600; margin-bottom: 4px; }
+  .step-name { font-size: 0.95rem; font-weight: 700; }
+  .step-tool { font-size: 0.78rem; color: #a0aec0; margin-top: 3px; }
+  .step-out  { font-size: 0.72rem; color: #68d391; margin-top: 5px; font-family: monospace; }
+  .step-note { font-size: 0.7rem; color: #f6ad55; margin-top: 3px; }
+
+  .arrow   { color: #4a5568; font-size: 1.4rem; margin: 4px 0; text-align: center; }
+  .arrow-h { color: #4a5568; font-size: 1.2rem; margin: 0 4px; }
+
+  .s-align   { border-color: #2b6cb0; } .s-align .step-name { color: #63b3ed; }
+  .s-variant { border-color: #276749; } .s-variant .step-name { color: #68d391; }
+  .s-sv      { border-color: #6b46c1; } .s-sv .step-name { color: #b794f4; }
+  .s-phase   { border-color: #975a16; } .s-phase .step-name { color: #f6ad55; }
+  .s-methyl  { border-color: #2c7a7b; } .s-methyl .step-name { color: #81e6d9; }
+  .s-annot   { border-color: #702459; } .s-annot .step-name { color: #f687b3; }
+  .s-te      { border-color: #744210; } .s-te .step-name { color: #fbd38d; }
+
+  .seq-badge {
+    font-size: 0.68rem; background: #2d3748; color: #a0aec0;
+    padding: 2px 8px; border-radius: 4px; margin-top: 6px; display: inline-block;
+  }
+  .seq-forced { background: #1a2744; color: #63b3ed; }
+
+  .output-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 14px; margin-top: 8px;
+  }
+  .output-card {
+    background: #1a202c; border: 1px solid #2d3748; border-radius: 8px; padding: 14px 16px;
+  }
+  .output-card .step-label {
+    font-size: 0.72rem; color: #718096; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  .output-card .dir  { font-family: monospace; font-size: 0.8rem; color: #f6ad55; margin-bottom: 6px; }
+  .output-card .file { font-family: monospace; font-size: 0.78rem; color: #a5d6ff; display: block; margin: 2px 0; }
+  .output-card .desc { font-size: 0.75rem; color: #718096; }
+
+  .sif-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .sif-card {
+    background: #1a202c; border: 1px solid #2d3748; border-radius: 8px; padding: 14px 16px;
+  }
+  .sif-card h4 { font-size: 0.85rem; font-weight: 700; color: #b794f4; margin-bottom: 6px; }
+  .sif-card .sif-file  { font-family: monospace; font-size: 0.78rem; color: #a5d6ff; }
+  .sif-card .sif-tools { font-size: 0.75rem; color: #718096; margin-top: 6px; }
+
+  .note {
+    background: #1a2744; border: 1px solid #2b4c7e; border-radius: 8px;
+    padding: 14px 18px; margin: 8px 0; font-size: 0.85rem; color: #a0aec0;
+  }
+  .note strong { color: #63b3ed; }
+  .note code   { font-family: monospace; background: #0d1117; padding: 1px 5px; border-radius: 3px; font-size: 0.82rem; color: #a5d6ff; }
+
+  .warn {
+    background: #2d1a00; border: 1px solid #7c4c00; border-radius: 8px;
+    padding: 14px 18px; margin: 8px 0; font-size: 0.85rem; color: #fbd38d;
+  }
+  .warn strong { color: #f6ad55; }
+
+  .tree {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 16px 20px; font-family: 'Consolas', monospace; font-size: 0.82rem;
+    line-height: 2; color: #e6edf3; overflow-x: auto;
+  }
+  .tree .dir-name  { color: #f6ad55; }
+  .tree .file-name { color: #a5d6ff; }
+  .tree .comment   { color: #6a737d; }
+
+  .log-box {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 14px 20px; font-family: 'Consolas', monospace; font-size: 0.8rem;
+    color: #8b949e; line-height: 1.9; overflow-x: auto;
+  }
+  .log-box .log-ok   { color: #3fb950; }
+  .log-box .log-run  { color: #79c0ff; }
+  .log-box .log-warn { color: #d29922; }
+  .log-box .log-dim  { color: #484f58; }
+
+  footer { text-align: center; padding: 24px; color: #4a5568; font-size: 0.8rem; border-top: 1px solid #2d3748; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>K_map PacBio HiFi WGS Pipeline v2</h1>
+  <p>완전 독립형 Nextflow DSL2 파이프라인 — 모든 툴이 Singularity 컨테이너 내 포함 · 경로 자동 설정</p>
+  <div class="badges">
+    <span class="badge badge-blue">Nextflow DSL2</span>
+    <span class="badge badge-green">Singularity</span>
+    <span class="badge badge-purple">GRCh38 no-alt</span>
+    <span class="badge badge-orange">GPU (DeepVariant)</span>
+    <span class="badge badge-blue">PacBio HiFi</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ── 실행 방법 ── -->
+  <div class="section-title">실행 방법 (run.sh)</div>
+
+  <div class="run-card">
+    <h3>기본 실행 — pbmm2부터 전체 파이프라인</h3>
+    <div class="code-block"><span class="cmd">bash</span> run.sh <span class="flag">--samplesheet</span> <span class="val">input/samples.csv</span></div>
+  </div>
+
+  <div class="run-card">
+    <h3>결과 경로 지정</h3>
+    <div class="code-block"><span class="cmd">bash</span> run.sh \
+  <span class="flag">--samplesheet</span> <span class="val">input/samples.csv</span> \
+  <span class="flag">--outdir</span>      <span class="val">/data/K_map/results</span></div>
+  </div>
+
+  <div class="run-card">
+    <h3>중단된 파이프라인 재시작 (-resume)</h3>
+    <div class="code-block"><span class="cmd">bash</span> run.sh \
+  <span class="flag">--samplesheet</span> <span class="val">input/samples.csv</span> \
+  <span class="flag">-resume</span>
+<span class="cmt"># Nextflow 캐시를 재사용 — 완료된 스텝은 건너뜀</span></div>
+  </div>
+
+  <div class="run-card">
+    <h3>hiphase 단계부터 재시작</h3>
+    <div class="code-block"><span class="cmt"># samplesheet의 start_step=hiphase 로 설정 후:</span>
+<span class="cmd">bash</span> run.sh \
+  <span class="flag">--samplesheet</span> <span class="val">input/samples_hiphase.csv</span> \
+  <span class="flag">--vcf_dir</span>     <span class="val">/data/results/HG002</span> \
+  <span class="flag">-resume</span>
+<span class="cmt"># --vcf_dir: 기존 DV/SAWFISH/TRGT VCF가 있는 디렉토리</span></div>
+  </div>
+
+  <div class="run-card">
+    <h3>GPU 없이 실행 / 스레드 수 조정</h3>
+    <div class="code-block"><span class="cmd">bash</span> run.sh \
+  <span class="flag">--samplesheet</span> <span class="val">input/samples.csv</span> \
+  <span class="flag">--use_gpu</span>     <span class="val">false</span> \
+  <span class="flag">--threads</span>     <span class="val">32</span></div>
+  </div>
+
+  <div class="run-card">
+    <h3>XX 샘플 (여성) 실행</h3>
+    <div class="code-block"><span class="cmd">bash</span> run.sh \
+  <span class="flag">--samplesheet</span> <span class="val">input/samples.csv</span> \
+  <span class="flag">--karyotype</span>   <span class="val">XX</span>
+<span class="cmt"># TRGT의 성별 설정 — XY(기본) 또는 XX</span></div>
+  </div>
+
+  <div class="run-card">
+    <h3>SLURM 클러스터 실행</h3>
+    <div class="code-block"><span class="cmd">bash</span> run.sh \
+  <span class="flag">--samplesheet</span> <span class="val">input/samples.csv</span> \
+  <span class="flag">-profile</span>      <span class="val">slurm</span></div>
+  </div>
+
+  <!-- ── 파라미터 전체 목록 ── -->
+  <div class="section-title">파라미터 전체 목록</div>
+  <div class="run-card">
+    <table>
+      <tr><th>파라미터</th><th>기본값</th><th>설명</th></tr>
+      <tr>
+        <td class="mono">--samplesheet</td>
+        <td><span class="tag tag-req">필수</span></td>
+        <td>입력 CSV 파일 경로 (sample_id, bam, start_step)</td>
+      </tr>
+      <tr>
+        <td class="mono">--outdir</td>
+        <td class="mono">&lt;pipeline_dir&gt;/results</td>
+        <td>결과 출력 디렉토리</td>
+      </tr>
+      <tr>
+        <td class="mono">--threads</td>
+        <td class="mono">16</td>
+        <td>CPU 스레드 수 (high_mem 라벨 프로세스에 적용)</td>
+      </tr>
+      <tr>
+        <td class="mono">--use_gpu</td>
+        <td class="mono">true</td>
+        <td>DeepVariant GPU 사용 여부 (false 시 CPU 모드)</td>
+      </tr>
+      <tr>
+        <td class="mono">--karyotype</td>
+        <td class="mono">XY</td>
+        <td>TRGT 성별 설정 — XY 또는 XX</td>
+      </tr>
+      <tr>
+        <td class="mono">--vcf_dir</td>
+        <td class="mono">null</td>
+        <td>start_step=hiphase 시 기존 VCF 경로 (지정 안 하면 outdir 사용)</td>
+      </tr>
+      <tr>
+        <td class="mono">--ref</td>
+        <td class="mono"><span class="tag tag-auto">auto</span></td>
+        <td>GRCh38_no_alt_analysis_set.fna — pipeline_dir 기준 자동 설정</td>
+      </tr>
+      <tr>
+        <td class="mono">--ref_mmi</td>
+        <td class="mono"><span class="tag tag-auto">auto</span></td>
+        <td>pbmm2 인덱스 (.fna.mmi) — 자동 설정</td>
+      </tr>
+      <tr>
+        <td class="mono">--trgt_catalog</td>
+        <td class="mono"><span class="tag tag-auto">auto</span></td>
+        <td>TRGT 반복서열 카탈로그 (repeat_catalog.hg38.bed)</td>
+      </tr>
+      <tr>
+        <td class="mono">--te_fasta</td>
+        <td class="mono"><span class="tag tag-auto">auto</span></td>
+        <td>sTELLeR TE 레퍼런스 (teref.human.fa)</td>
+      </tr>
+      <tr>
+        <td class="mono">--steller_py</td>
+        <td class="mono"><span class="tag tag-auto">auto</span></td>
+        <td>sTELLeR 메인 스크립트 경로</td>
+      </tr>
+      <tr>
+        <td class="mono">--vep_cache</td>
+        <td class="mono"><span class="tag tag-auto">auto</span></td>
+        <td>Ensembl VEP 오프라인 캐시 디렉토리</td>
+      </tr>
+      <tr>
+        <td class="mono">--annotsv_db</td>
+        <td class="mono"><span class="tag tag-auto">auto</span></td>
+        <td>AnnotSV 데이터베이스 디렉토리</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ── Samplesheet ── -->
+  <div class="section-title">Samplesheet CSV 형식</div>
+  <div class="run-card">
+    <table>
+      <tr><th>컬럼</th><th>설명</th><th>값</th></tr>
+      <tr>
+        <td class="mono">sample_id</td>
+        <td>샘플 식별자 (출력 파일명 prefix로 사용)</td>
+        <td><span class="tag tag-req">필수</span></td>
+      </tr>
+      <tr>
+        <td class="mono">bam</td>
+        <td>입력 BAM 파일 절대 경로</td>
+        <td><span class="tag tag-req">필수</span></td>
+      </tr>
+      <tr>
+        <td class="mono">start_step</td>
+        <td>시작 단계 지정</td>
+        <td class="mono">jasmine | pbmm2 | deepvariant | hiphase</td>
+      </tr>
+    </table>
+    <div style="margin-top:14px">
+    <div class="code-block"><span class="cmt">sample_id,bam,start_step</span>
+HG002,/data/HG002.kinetics.bam,jasmine      <span class="cmt"># kinetics BAM → 처음부터</span>
+HG003,/data/HG003.aligned.bam,deepvariant   <span class="cmt"># 정렬 완료 BAM → DV부터</span>
+HG004,/data/HG004.aligned.bam,hiphase       <span class="cmt"># DV/SV/TR 완료 → phasing부터</span></div>
+    </div>
+  </div>
+
+  <!-- ── 파이프라인 다이어그램 ── -->
+  <div class="section-title">파이프라인 흐름</div>
+
+  <div class="pipeline">
+
+    <div class="step-group">
+      <div class="step s-align">
+        <div class="step-num">STEP 01 (선택)</div>
+        <div class="step-name">JASMINE</div>
+        <div class="step-tool">PacBio jasmine</div>
+        <div class="step-out">kinetics BAM → MM/ML 태그</div>
+        <div class="step-note">start_step=jasmine 일 때만</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+
+    <div class="step-group">
+      <div class="step s-align">
+        <div class="step-num">STEP 02</div>
+        <div class="step-name">PBMM2</div>
+        <div class="step-tool">pbmm2 v26.1.99</div>
+        <div class="step-out">.aligned.sorted.bam</div>
+        <div class="step-note">GRCh38 no-alt · HIFI preset</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+
+    <div class="step-group">
+      <div class="step s-variant">
+        <div class="step-num">STEP 03</div>
+        <div class="step-name">DEEPVARIANT</div>
+        <div class="step-tool">DeepVariant 1.9.0 (GPU)</div>
+        <div class="step-out">.deepvariant.vcf.gz</div>
+        <div class="seq-badge seq-forced">① 먼저 실행</div>
+      </div>
+    </div>
+    <div class="arrow">↓ <span style="font-size:0.7rem;color:#63b3ed">DV VCF 완료 후 시작</span></div>
+
+    <div class="step-group">
+      <div class="step s-sv">
+        <div class="step-num">STEP 04</div>
+        <div class="step-name">SAWFISH</div>
+        <div class="step-tool">sawfish v2.2.1</div>
+        <div class="step-out">.sv.vcf.gz · run.stats.json</div>
+        <div class="seq-badge seq-forced">② DV 완료 후 실행</div>
+      </div>
+    </div>
+    <div class="arrow">↓ <span style="font-size:0.7rem;color:#63b3ed">SAWFISH stats 완료 후 시작</span></div>
+
+    <div class="step-group">
+      <div class="step s-sv">
+        <div class="step-num">STEP 05</div>
+        <div class="step-name">TRGT</div>
+        <div class="step-tool">trgt v5.0.0</div>
+        <div class="step-out">.trgt.vcf.gz · spanning.bam</div>
+        <div class="seq-badge seq-forced">③ SAWFISH 완료 후 실행</div>
+      </div>
+    </div>
+    <div class="arrow">↓ <span style="font-size:0.7rem;color:#63b3ed">DV + SAWFISH + TRGT 모두 완료 후</span></div>
+
+    <div class="step-group">
+      <div class="step s-phase">
+        <div class="step-num">STEP 06</div>
+        <div class="step-name">HIPHASE</div>
+        <div class="step-tool">hiphase v1.6.0</div>
+        <div class="step-out">.haplotagged.bam · phased VCFs</div>
+        <div class="step-note">SNV + SV + TR 동시 phasing</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+
+    <div class="step-group">
+      <div class="step s-methyl">
+        <div class="step-num">STEP 07</div>
+        <div class="step-name">pb-CpG-tools</div>
+        <div class="step-tool">pb-cpg-tools v3.0.0</div>
+        <div class="step-out">combined / hap1 / hap2 .bed.gz</div>
+        <div class="step-note">haplotagged BAM 입력</div>
+      </div>
+      <div class="arrow-h">‖</div>
+      <div class="step s-annot">
+        <div class="step-num">STEP 08</div>
+        <div class="step-name">VEP</div>
+        <div class="step-tool">Ensembl VEP 115</div>
+        <div class="step-out">.snv.phased.vep115.merged.vcf.gz</div>
+        <div class="step-note">phased SNV 입력</div>
+      </div>
+      <div class="arrow-h">‖</div>
+      <div class="step s-annot">
+        <div class="step-num">STEP 09</div>
+        <div class="step-name">AnnotSV (SV)</div>
+        <div class="step-tool">AnnotSV v3.5.8</div>
+        <div class="step-out">.sv.annotsv.tsv</div>
+        <div class="step-note">phased SV 입력</div>
+      </div>
+      <div class="arrow-h">‖</div>
+      <div class="step s-annot">
+        <div class="step-num">STEP 10</div>
+        <div class="step-name">AnnotSV (TR)</div>
+        <div class="step-tool">AnnotSV v3.5.8</div>
+        <div class="step-out">.tr.annotsv.tsv</div>
+        <div class="step-note">phased TR 입력</div>
+      </div>
+    </div>
+    <div class="arrow">↓ (haplotagged BAM)</div>
+
+    <div class="step-group">
+      <div class="step s-te">
+        <div class="step-num">STEP 11</div>
+        <div class="step-name">sTELLeR</div>
+        <div class="step-tool">sTELLeR + minimap2</div>
+        <div class="step-out">.steller.sorted.vcf.gz</div>
+        <div class="step-note">haplotagged BAM 입력 · 2,500+ TE</div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+
+    <div class="step-group">
+      <div class="step s-te">
+        <div class="step-num">STEP 12</div>
+        <div class="step-name">AnnotSV (TE)</div>
+        <div class="step-tool">AnnotSV v3.5.8</div>
+        <div class="step-out">.steller.annotated.tsv</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── 로그 출력 ── -->
+  <div class="section-title">실행 중 로그 — 어떤 프로세스가 돌고 있는지</div>
+  <div class="run-card">
+    <h3>Nextflow 표준 출력 (터미널 / run.log)</h3>
+    <div class="log-box"><span class="log-dim">N E X T F L O W  ~  version 26.04.3</span>
+<span class="log-dim">Launching `main.nf` [zealous_pasteur] DSL2 - revision: a1b2c3d</span>
+
+<span class="log-run">executor &gt;  local (1)</span>
+<span class="log-run">[a1/234bcd] PBMM2 (HG002)           | 1 of 1 ✔</span>
+<span class="log-run">[b2/456def] DEEPVARIANT (HG002)      | 1 of 1 ✔</span>
+<span class="log-run">[c3/678abc] SAWFISH (HG002)          | 1 of 1 ✔</span>
+<span class="log-run">[d4/890bcd] TRGT (HG002)             | 1 of 1 ✔</span>
+<span class="log-run">[e5/012def] HIPHASE (HG002)          | 1 of 1 ✔</span>
+<span class="log-run">[f6/234abc] CPG_TOOLS (HG002)        | 1 of 1 ✔</span>
+<span class="log-run">[g7/456bcd] SNP_ANNOTATION (HG002)   | 1 of 1 ✔</span>
+<span class="log-run">[h8/678def] ANNOTSV_SV (HG002)       | 1 of 1 ✔</span>
+<span class="log-run">[i9/890abc] ANNOTSV_TR (HG002)       | 1 of 1 ✔</span>
+<span class="log-run">[j0/012bcd] STELLER (HG002)          | 1 of 1 ✔</span>
+<span class="log-run">[k1/234def] ANNOTSV_TE (HG002)       | 1 of 1 ✔</span>
+<span class="log-run">[l2/456abc] QC_COLLECT (HG002)       | 1 of 1 ✔</span>
+<span class="log-run">[m3/678bcd] QC_MERGE                 | 1 of 1 ✔</span>
+<span class="log-run">[n4/890def] MEMORY_MONITOR (HG002)   | 1 of 1 ✔</span>
+
+<span class="log-ok">Completed at: 2026-06-21T11:40:00</span>
+<span class="log-ok">Duration    : 8h 23m 14s</span>
+<span class="log-ok">CPU hours   : 142.3</span>
+<span class="log-ok">Succeeded   : 14</span></div>
+    <p style="font-size:0.8rem;color:#718096;margin-top:10px">
+      → 각 줄의 <code style="color:#a5d6ff;font-family:monospace">[해시/해시]</code>는 work 디렉토리의 경로를 나타냄<br>
+      → 실행 중인 프로세스는 <code style="color:#a5d6ff;font-family:monospace">✔ RUNNING</code> 상태로 표시됨<br>
+      → 로그 전체는 <code style="color:#a5d6ff;font-family:monospace">outdir/pipeline_info/run_YYYYMMDD_HHMMSS.log</code>에 저장
+    </p>
+  </div>
+
+  <div class="run-card">
+    <h3>Nextflow 상세 리포트 (완료 후 자동 생성)</h3>
+    <div class="log-box"><span class="log-dim">outdir/pipeline_info/</span>
+<span class="log-ok">├── timeline.html</span>   <span class="log-dim"># 각 프로세스 시작/종료 타임라인 (HTML 시각화)</span>
+<span class="log-ok">├── report.html</span>     <span class="log-dim"># CPU/메모리/실행시간 상세 리포트</span>
+<span class="log-ok">├── trace.csv</span>       <span class="log-dim"># 프로세스별 cpu%, mem%, RSS, 실행시간 등 원시 데이터</span>
+<span class="log-ok">└── run_*.log</span>       <span class="log-dim"># Nextflow 전체 로그 (타임스탬프 포함)</span></div>
+    <p style="font-size:0.8rem;color:#718096;margin-top:10px">
+      → <strong style="color:#63b3ed">timeline.html</strong>을 브라우저로 열면 어떤 프로세스가 언제 실행됐는지 한눈에 확인 가능
+    </p>
+  </div>
+
+  <div class="run-card">
+    <h3>시스템 메모리 로그 (run.sh가 실행 중 5초 간격으로 기록)</h3>
+    <div class="log-box"><span class="log-dim">outdir/logs/system_memory.tsv</span>
+
+<span class="log-dim">timestamp              total_MB   used_MB   free_MB</span>
+<span class="log-ok">2026-06-21 09:00:05   128941     32451     96490</span>
+<span class="log-ok">2026-06-21 09:00:10   128941     35820     93121</span>
+<span class="log-ok">2026-06-21 09:00:15   128941     61033     67908</span>
+<span class="log-dim">...  (파이프라인이 끝날 때까지 계속 기록)</span></div>
+    <p style="font-size:0.8rem;color:#718096;margin-top:10px">
+      → run.sh가 백그라운드 루프로 실행하며, 파이프라인 종료 시 자동 중지 (trap EXIT)<br>
+      → Nextflow 프로세스별 상세 메모리는 <code style="color:#a5d6ff;font-family:monospace">trace.csv</code>의 rss/peak_rss 컬럼 참조
+    </p>
+  </div>
+
+  <!-- ── 출력 파일 ── -->
+  <div class="section-title">출력 파일 구조</div>
+  <div class="tree">
+<span class="dir-name">outdir/</span>
+├── <span class="dir-name">{sample_id}/</span>
+│   ├── <span class="dir-name">02_aligned_bam/</span>           <span class="comment">pbmm2 정렬 BAM + flagstat</span>
+│   ├── <span class="dir-name">03_small_variants/</span>        <span class="comment">DeepVariant SNV VCF + gVCF</span>
+│   ├── <span class="dir-name">04_structural_var/</span>        <span class="comment">SAWFISH SV VCF + stats.json</span>
+│   ├── <span class="dir-name">05_tandem_repeats/</span>        <span class="comment">TRGT VCF + spanning BAM</span>
+│   ├── <span class="dir-name">06a_phased_bam/</span>           <span class="comment">haplotagged BAM + blocks/stats/summary</span>
+│   ├── <span class="dir-name">06b_phased_SNP/</span>           <span class="comment">phased SNV VCF</span>
+│   ├── <span class="dir-name">06c_phased_SV/</span>            <span class="comment">phased SV VCF</span>
+│   ├── <span class="dir-name">06d_phased_TR/</span>            <span class="comment">phased TR VCF</span>
+│   ├── <span class="dir-name">07_CpG_methylation/</span>       <span class="comment">combined + hap1 + hap2 .bed.gz (MethBat 입력)</span>
+│   ├── <span class="dir-name">08_SNP_annotation/</span>        <span class="comment">VEP115 annotated VCF</span>
+│   ├── <span class="dir-name">09_SV_annotation/</span>         <span class="comment">AnnotSV TSV (SV)</span>
+│   ├── <span class="dir-name">10_TR_annotation/</span>         <span class="comment">AnnotSV TSV (TR)</span>
+│   ├── <span class="dir-name">11_transposable_elements/</span> <span class="comment">sTELLeR VCF (.steller.sorted.vcf.gz)</span>
+│   ├── <span class="dir-name">12_TE_annotation/</span>         <span class="comment">AnnotSV TSV (TE)</span>
+│   └── <span class="dir-name">logs/</span>
+│       └── <span class="file-name">pipeline_done.tsv</span>         <span class="comment">파이프라인 완료 시점 스냅샷</span>
+├── <span class="dir-name">logs/</span>
+│   └── <span class="file-name">system_memory.tsv</span>         <span class="comment">전체 실행 중 5초 간격 메모리 로그</span>
+├── <span class="file-name">qc_summary.csv</span>               <span class="comment">전체 샘플 QC 통합 테이블</span>
+└── <span class="dir-name">pipeline_info/</span>
+    ├── <span class="file-name">timeline.html</span>             <span class="comment">프로세스 실행 타임라인 시각화</span>
+    ├── <span class="file-name">report.html</span>               <span class="comment">CPU/메모리/시간 상세 리포트</span>
+    ├── <span class="file-name">trace.csv</span>                 <span class="comment">프로세스별 원시 리소스 데이터</span>
+    └── <span class="file-name">run_YYYYMMDD_HHMMSS.log</span>   <span class="comment">Nextflow 전체 로그</span>
+  </div>
+
+  <!-- ── 컨테이너 ── -->
+  <div class="section-title">Singularity 컨테이너</div>
+  <div class="sif-grid">
+    <div class="sif-card">
+      <h4>kmap_pbwgs_v2.sif (메인)</h4>
+      <div class="sif-file">containers/kmap_pbwgs_v2.sif</div>
+      <div class="sif-tools">pbmm2 · samtools · bcftools · hiphase · trgt · sawfish · pb-cpg-tools · jasmine · annotsv · bedtools · minimap2 · sTELLeR deps</div>
+    </div>
+    <div class="sif-card">
+      <h4>deepvariant_1.9.0-gpu.sif</h4>
+      <div class="sif-file">containers/deepvariant_1.9.0-gpu.sif</div>
+      <div class="sif-tools">DeepVariant 1.9.0 (NVIDIA GPU 지원)</div>
+    </div>
+    <div class="sif-card">
+      <h4>ensembl-vep-release_115.0.sif</h4>
+      <div class="sif-file">containers/ensembl-vep-release_115.0.sif</div>
+      <div class="sif-tools">Ensembl VEP 115 · homo_sapiens GRCh38 cache</div>
+    </div>
+  </div>
+
+  <!-- ── 리소스 파일 ── -->
+  <div class="section-title">리소스 파일 (resources/ref/ 자동 탐색)</div>
+  <table>
+    <tr><th>파일</th><th>용도</th><th>크기</th></tr>
+    <tr><td class="mono">GRCh38_no_alt_analysis_set.fna</td><td>기준 게놈 (unplaced contig 제거)</td><td>~3 GB</td></tr>
+    <tr><td class="mono">GRCh38_no_alt_analysis_set.fna.mmi</td><td>pbmm2 인덱스</td><td>~5.4 GB</td></tr>
+    <tr><td class="mono">repeat_catalog.hg38.bed</td><td>TRGT 반복서열 카탈로그 (171,146 loci)</td><td>~6 MB</td></tr>
+    <tr><td class="mono">TE_ref/teref.human.fa</td><td>sTELLeR TE 레퍼런스</td><td>—</td></tr>
+    <tr><td class="mono">sTELLeR/steller/steller.py</td><td>sTELLeR 메인 스크립트</td><td>—</td></tr>
+    <tr><td class="mono">cache/homo_sapiens/115_GRCh38/</td><td>VEP offline 캐시</td><td>~50 GB</td></tr>
+    <tr><td class="mono">AnnotSV/</td><td>AnnotSV 데이터베이스</td><td>~20 GB</td></tr>
+  </table>
+
+  <!-- ── 주의사항 ── -->
+  <div class="section-title">주요 사항</div>
+
+  <div class="warn">
+    <strong>GRCh38 no-alt 사용 필수</strong><br>
+    GRCh38 primary assembly (with alt contigs) 사용 시 DeepVariant가 unplaced contig에서 0바이트 VCF shard를 생성하며 exit 245 (SIGSEGV) 발생. <code style="font-family:monospace;background:#1a0a00;padding:1px 5px;border-radius:3px">GRCh38_no_alt_analysis_set</code>만 사용할 것.
+  </div>
+
+  <div class="note">
+    <strong>DeepVariant → SAWFISH → TRGT 순차 실행</strong><br>
+    채널 <code>join()</code>으로 순서가 코드 레벨에서 강제됨. DV VCF가 emit되어야 SAWFISH 시작, SAWFISH stats.json이 emit되어야 TRGT 시작.
+  </div>
+
+  <div class="note">
+    <strong>pb-CpG-tools 출력 → MethBat 연계</strong><br>
+    <code>combined.bed.gz</code> / <code>hap1.bed.gz</code> / <code>hap2.bed.gz</code> (type 컬럼: Total/hap1/hap2).<br>
+    MethBat segment: <code>methbat segment --input-prefix {sample_id 경로 prefix}</code><br>
+    MethBat joint-segment: 샘플 목록 TSV (identifier / filename / labels) → <code>methbat joint-segment --input-collection collection.tsv</code>
+  </div>
+
+  <div class="note">
+    <strong>workDir 로컬 SSD 고정</strong><br>
+    NFS 위에서 samtools sort 임시 파일 truncation 문제 방지를 위해<br>
+    <code>workDir = /home/Data_Drive_8TB_2/senc0711/K_map_nf_work_v2</code> 고정.
+  </div>
+
+  <div class="note">
+    <strong>sTELLeR 출력 파일명</strong><br>
+    <code>-o {prefix}</code> 옵션이 파일명이 아닌 sample prefix로 작동 → 실제 출력: <code>{prefix}_repeats.vcf</code>. TE 이름에 콜론 포함 시 FORMAT 필드 fix 자동 적용 (awk).
+  </div>
+
+  <div class="note">
+    <strong>메모리 로그 위치</strong><br>
+    • <code>outdir/logs/system_memory.tsv</code> — run.sh 백그라운드 루프가 5초 간격으로 기록. 파이프라인 종료 시 자동 중지.<br>
+    • <code>outdir/pipeline_info/trace.csv</code> — Nextflow가 프로세스별 CPU/메모리를 자동 기록 (peak_rss 포함).<br>
+    • <code>outdir/{sample_id}/logs/pipeline_done.tsv</code> — 파이프라인 완료 시점 스냅샷.
+  </div>
+
+</div>
+
+<footer>K_map PacBio WGS Pipeline v2 &nbsp;·&nbsp; 2026</footer>
+
+</body>
+</html>
