@@ -4,32 +4,32 @@
 work/
 
 # 대용량 바이너리 (별도 배포)
-containers/*.sif
+PBLONGREADWGS/containers/*.sif
 
 # 레퍼런스 데이터 (별도 배포)
-resources/ref/*
-!resources/ref/sex/
+PBLONGREADWGS/resources/ref/*
+!PBLONGREADWGS/resources/ref/sex/
 
 # 파이프라인 결과물
 results/
 
 # 샘플시트 (경로가 머신마다 다름) — samples.csv 템플릿만 추적
-input/kmap_*.csv
-input/hg002_*.csv
+PBLONGREADWGS/input/kmap_*.csv
+PBLONGREADWGS/input/hg002_*.csv
 
 # 대용량 BAM 파일
-input/*.bam
-input/*.bam.bai
+PBLONGREADWGS/input/*.bam
+PBLONGREADWGS/input/*.bam.bai
 
 # 시스템 파일
 .DS_Store
-containers/build_main.log
-containers/*.log
-docs/*.pptx
+PBLONGREADWGS/containers/build_main.log
+PBLONGREADWGS/containers/*.log
+PBLONGREADWGS/docs/*.pptx
 
 # 로컬 실행 환경 / 테스트 (배포 제외)
 .java17/
 tools/
 test_runs/
 logs/
-resources/downloads/
+PBLONGREADWGS/resources/downloads/
