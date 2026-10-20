@@ -62,7 +62,7 @@ fi
 echo ""
 echo "[4] Singularity 컨테이너 (.sif)"
 MISSING_SIF=0
-for sif in kmap_pbwgs_v2.sif deepvariant_1.9.0-gpu.sif ensembl-vep-release_115.0.sif; do
+for sif in kmap_pbwgs_v2.sif deepvariant_1.9.0-gpu.sif; do
     if [[ -f "${PIPELINE_DIR}/containers/${sif}" ]]; then
         SIZE=$(du -sh "${PIPELINE_DIR}/containers/${sif}" | cut -f1)
         check "containers/${sif} (${SIZE})"
@@ -91,11 +91,10 @@ check_ref() {
 }
 check_ref "GRCh38_no_alt_analysis_set.fna"
 check_ref "GRCh38_no_alt_analysis_set.fna.mmi"
-check_ref "repeat_catalog.hg38.bed"
-check_ref "TE_ref/teref.human.fa"
-check_ref "sTELLeR/steller/steller.py"
-check_ref "cache"       # VEP cache dir
-check_ref "AnnotSV"     # AnnotSV DB dir
+check_ref "trgt/adotto_strchive_20250827.hg38.noFailTag.bed.gz"
+check_ref "sex/GRCh38.PAR.bed"            # DeepVariant haploid (XY)
+check_ref "sex/expected_cn.hg38.XX.bed"   # Sawfish
+check_ref "sex/expected_cn.hg38.XY.bed"   # Sawfish
 
 echo ""
 echo "============================================================"

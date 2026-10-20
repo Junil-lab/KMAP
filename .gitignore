@@ -7,7 +7,8 @@ work/
 containers/*.sif
 
 # 레퍼런스 데이터 (별도 배포)
-resources/ref/
+resources/ref/*
+!resources/ref/sex/
 
 # 파이프라인 결과물
 results/
@@ -25,3 +26,10 @@ input/*.bam.bai
 containers/build_main.log
 containers/*.log
 docs/*.pptx
+
+# 로컬 실행 환경 / 테스트 (배포 제외)
+.java17/
+tools/
+test_runs/
+logs/
+resources/downloads/

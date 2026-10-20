@@ -13,13 +13,10 @@ nextflow.enable.dsl = 2
 //   05 tandem_repeats    ← TRGT
 //   06 phasing           ← HIPHASE (SNV+SV+TR 동시)
 //   07 CpG_methylation   ← pb-CpG-tools
-//   08 SNP_annotation    ← VEP 115
-//   09 SV_annotation     ← AnnotSV
-//   10 TR_annotation     ← AnnotSV
-//   11 TE_detection      ← sTELLeR
-//   12 TE_annotation     ← AnnotSV
+//   (VEP / AnnotSV 어노테이션, sTELLeR TE 검출 단계는 제거됨)
 //
-// samplesheet CSV: sample_id, bam, start_step
+// samplesheet CSV: sample_id, bam, sex, start_step
+//   sex: XX | XY  (필수 — TRGT karyotype, DeepVariant haploid, Sawfish expected CN 에 사용)
 //   start_step: jasmine | pbmm2 | deepvariant | hiphase
 // ============================================================
 
@@ -100,6 +97,8 @@ process DEEPVARIANT {
     path "${meta.id}.deepvariant.g.vcf.gz.tbi"
 
     script:
+    // XY: PAR 밖 chrX/chrY 를 haploid 로 콜링
+    def haploid_args = meta.sex == 'XY' ? "--haploid_contigs=chrX,chrY --par_regions_bed=${params.par_bed}" : ""
     """
     mkdir -p tmp_dv
     /opt/deepvariant/bin/run_deepvariant \\
@@ -110,7 +109,8 @@ process DEEPVARIANT {
         --output_gvcf=${meta.id}.deepvariant.g.vcf.gz \\
         --intermediate_results_dir=tmp_dv \\
         --num_shards=${params.threads} \\
-        --vcf_stats_report=false
+        --vcf_stats_report=false \\
+        ${haploid_args}
     """
 }
 
@@ -131,15 +131,19 @@ process SAWFISH {
     tuple val(meta), path("${meta.id}.sv.run.stats.json"), emit: stats
 
     script:
+    def expected_cn = meta.sex == 'XY' ? params.expected_cn_xy : params.expected_cn_xx
     """
     sawfish discover \\
         --bam ${bam} \\
         --ref ${params.ref} \\
+        --expected-cn ${expected_cn} \\
         --output-dir discover \\
         --threads ${params.threads}
 
+    # expected CN 1 인 구간(XY 의 chrX/chrY)은 SV 도 haploid 로 genotyping
     sawfish joint-call \\
         --sample discover \\
+        --treat-single-copy-as-haploid \\
         --output-dir call \\
         --threads ${params.threads}
 
@@ -174,7 +178,7 @@ process TRGT {
         --reads ${bam} \\
         --repeats ${params.trgt_catalog} \\
         --output-prefix ${meta.id}.trgt \\
-        --karyotype ${params.karyotype ?: 'XY'} \\
+        --karyotype ${meta.sex} \\
         --preset wgs
 
     samtools sort -@ ${params.threads} \\
@@ -277,203 +281,6 @@ process CPG_TOOLS {
     tabix -f -p bed ${meta.id}.combined.bed.gz
     [ -f ${meta.id}.hap1.bed.gz ] && tabix -f -p bed ${meta.id}.hap1.bed.gz || true
     [ -f ${meta.id}.hap2.bed.gz ] && tabix -f -p bed ${meta.id}.hap2.bed.gz || true
-    """
-}
-
-// ============================================================
-// STEP 08: VEP — SNV annotation (VEP SIF 사용)
-// ============================================================
-process SNP_ANNOTATION {
-    tag "${meta.id}"
-    label 'high_mem'
-    container params.vep_sif
-    publishDir { "${params.outdir}/${meta.id}/10_SNP_annotation" }, mode: 'copy'
-
-    input:
-    tuple val(meta), path(vcf), path(tbi)
-
-    output:
-    tuple val(meta), path("${meta.id}.snv.phased.vep115.merged.vcf.gz"), emit: vep_vcf
-    path "${meta.id}.snv.phased.vep115.merged.vcf.gz.stdout.log"
-
-    script:
-    """
-    vep \\
-        --offline \\
-        --cache \\
-        --dir_cache ${params.vep_cache} \\
-        --species homo_sapiens \\
-        --assembly GRCh38 \\
-        --fasta ${params.vep_ref_1kg} \\
-        --merged \\
-        --format vcf \\
-        --vcf \\
-        --compress_output bgzip \\
-        --input_file ${vcf} \\
-        --output_file ${meta.id}.snv.phased.vep115.merged.vcf.gz \\
-        --force_overwrite \\
-        --fork ${params.threads} \\
-        --symbol --mane --canonical --biotype --numbers \\
-        --variant_class --hgvs --check_existing \\
-        --af --af_gnomade --af_gnomadg --max_af \\
-        --sift b --polyphen b \\
-        --no_stats --no_progress \\
-        > ${meta.id}.snv.phased.vep115.merged.vcf.gz.stdout.log 2>&1
-    """
-}
-
-// ============================================================
-// STEP 09: ANNOTSV_SV — SV annotation
-// ============================================================
-process ANNOTSV_SV {
-    tag "${meta.id}"
-    label 'high_mem'
-    container params.main_sif
-    publishDir { "${params.outdir}/${meta.id}/11_SV_annotation" }, mode: 'copy'
-
-    input:
-    tuple val(meta), path(vcf), path(tbi)
-
-    output:
-    tuple val(meta), path("${meta.id}.sv.annotsv.tsv"), emit: sv_annot
-    path "${meta.id}.sv.annotsv.unannotated.tsv"
-
-    script:
-    """
-    AnnotSV \\
-        -SVinputFile    ${vcf} \\
-        -outputFile     ${meta.id}.sv.annotsv \\
-        -annotationsDir ${params.annotsv_db} \\
-        -genomeBuild    GRCh38 \\
-        -annotationMode full
-    find . -name "${meta.id}.sv.annotsv.tsv" ! -path "./${meta.id}.sv.annotsv.tsv" -exec mv {} . \\;
-    find . -name "${meta.id}.sv.annotsv.unannotated.tsv" ! -path "./${meta.id}.sv.annotsv.unannotated.tsv" -exec mv {} . \\;
-    """
-}
-
-// ============================================================
-// STEP 10: ANNOTSV_TR — TR annotation
-// ============================================================
-process ANNOTSV_TR {
-    tag "${meta.id}"
-    label 'high_mem'
-    container params.main_sif
-    publishDir { "${params.outdir}/${meta.id}/12_TR_annotation" }, mode: 'copy'
-    // errorStrategy: nextflow.config withName:'STELLER|ANNOTSV_TR' 에서 관리 (retry 1 → ignore)
-
-    input:
-    tuple val(meta), path(vcf), path(tbi)
-
-    output:
-    tuple val(meta), path("${meta.id}.tr.annotsv.tsv"), emit: tr_annot, optional: true
-    path "${meta.id}.tr.annotsv.unannotated.tsv", optional: true
-
-    script:
-    """
-    AnnotSV \\
-        -SVinputFile    ${vcf} \\
-        -outputFile     ${meta.id}.tr.annotsv \\
-        -annotationsDir ${params.annotsv_db} \\
-        -genomeBuild    GRCh38 \\
-        -annotationMode full
-    find . -name "${meta.id}.tr.annotsv.tsv" ! -path "./${meta.id}.tr.annotsv.tsv" -exec mv {} . \\; 2>/dev/null || true
-    find . -name "${meta.id}.tr.annotsv.unannotated.tsv" ! -path "./${meta.id}.tr.annotsv.unannotated.tsv" -exec mv {} . \\; 2>/dev/null || true
-    """
-}
-
-// ============================================================
-// STEP 11: STELLER — TE detection
-// ============================================================
-process STELLER {
-    tag "${meta.id}"
-    label 'high_mem'
-    container params.main_sif
-    publishDir { "${params.outdir}/${meta.id}/08_transposable_elements" }, mode: 'copy'
-
-    input:
-    tuple val(meta), path(bam), path(bai)
-
-    output:
-    tuple val(meta), path("${meta.id}.steller.sorted.vcf.gz"), path("${meta.id}.steller.sorted.vcf.gz.tbi"), emit: te_vcf
-    path "${meta.id}.steller.log"
-
-    script:
-    """
-    # minimap2는 컨테이너 PATH에 없을 수 있으므로 명시
-    export PATH=/opt/conda/envs/kmap/bin:\$PATH
-
-    # steller -o 는 sample prefix — 실제 출력 파일은 <prefix>_repeats.vcf
-    STELLER_EXIT=0
-    python3 ${params.steller_py} \\
-        -R ${params.ref} \\
-        -tf ${params.te_fasta} \\
-        -b ${bam} \\
-        -s pb -r 3 \\
-        -o ${meta.id} \\
-        2>&1 | tee ${meta.id}.steller.log || STELLER_EXIT=\$?
-
-    # steller 출력: ${meta.id}_repeats.vcf
-    RAW_VCF="${meta.id}_repeats.vcf"
-
-    # sTELLeR 실패 시: 빈 VCF 생성 후 경고 (downstream은 계속, retry는 config에서 관리)
-    if [ \${STELLER_EXIT} -ne 0 ] || [ ! -s "\${RAW_VCF}" ]; then
-        echo "WARNING: sTELLeR failed or produced empty output for ${meta.id} (exit=\${STELLER_EXIT}). Creating empty VCF." >&2
-        printf '##fileformat=VCFv4.1\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t${meta.id}\n' > "\${RAW_VCF}"
-    fi
-
-    # TE 이름 콜론 fix + FORMAT 헤더 정의 추가 (bcftools 파싱 에러 방지)
-    # HT 필드에 콤마(1,2,0) 포함 케이스 때문에 String 타입으로 헤더 정의 필요
-    awk 'BEGIN{OFS="\t"}
-    /^##fileformat/{print; next}
-    /^##FORMAT/{print; next}
-    /^##/{print; next}
-    /^#CHROM/{
-        print "##FORMAT=<ID=TE,Number=1,Type=String,Description=\"Transposable element\">"
-        print "##FORMAT=<ID=TS,Number=1,Type=String,Description=\"Transposon start\">"
-        print "##FORMAT=<ID=HT,Number=.,Type=String,Description=\"Haplotag\">"
-        print "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">"
-        print "##INFO=<ID=MEINFO,Number=.,Type=String,Description=\"Mobile element info\">"
-        print "##INFO=<ID=SVTYPE,Number=1,Type=String,Description=\"SV type\">"
-        print "##INFO=<ID=SVTPE,Number=1,Type=String,Description=\"SV type (steller)\">"
-        print; next
-    }
-    {
-        n=split(\$10,v,":");
-        if(n==5){ \$10=v[1]"_"v[2]":"v[3]":"v[4]":"v[5] };
-        print
-    }' "\${RAW_VCF}" > ${meta.id}.steller.fixed.vcf
-
-    bcftools sort -Oz -o ${meta.id}.steller.sorted.vcf.gz ${meta.id}.steller.fixed.vcf
-    bcftools index --tbi ${meta.id}.steller.sorted.vcf.gz
-    """
-}
-
-// ============================================================
-// STEP 12: ANNOTSV_TE — TE annotation
-// ============================================================
-process ANNOTSV_TE {
-    tag "${meta.id}"
-    label 'high_mem'
-    container params.main_sif
-    publishDir { "${params.outdir}/${meta.id}/09_TE_annotation" }, mode: 'copy'
-
-    input:
-    tuple val(meta), path(vcf), path(tbi)
-
-    output:
-    tuple val(meta), path("${meta.id}.steller.annotated.tsv"), emit: te_annot
-    path "${meta.id}.steller.unannotated.tsv", optional: true
-
-    script:
-    """
-    AnnotSV \\
-        -SVinputFile    ${vcf} \\
-        -outputFile     ${meta.id}.steller.annotated \\
-        -annotationsDir ${params.annotsv_db} \\
-        -genomeBuild    GRCh38 \\
-        -annotationMode full
-    find . -name "${meta.id}.steller.annotated.tsv" ! -path "./${meta.id}.steller.annotated.tsv" -exec mv {} . \\;
-    find . -name "${meta.id}.steller.unannotated.tsv" ! -path "./${meta.id}.steller.unannotated.tsv" -exec mv {} . \\; 2>/dev/null || true
     """
 }
 
@@ -613,7 +420,11 @@ workflow {
         .fromPath(params.samplesheet)
         .splitCsv(header: true)
         .map { row ->
-            def meta       = [id: row.sample_id]
+            def sex        = (row.sex ?: '').trim().toUpperCase()
+            if (!(sex in ['XX', 'XY'])) {
+                error "samplesheet: ${row.sample_id} 의 sex 값이 '${row.sex}' — XX 또는 XY 필수"
+            }
+            def meta       = [id: row.sample_id, sex: sex]
             def bam        = file(row.bam)
             def start_step = row.start_step ?: 'pbmm2'
             tuple(meta, bam, start_step)
@@ -706,33 +517,6 @@ workflow {
 
     // STEP 07: CPG_TOOLS — haplotagged BAM → CpG methylation (가장 먼저)
     cpg_out = CPG_TOOLS(hiphase_out.haplotagged_bam)
-
-    // STEP 08: STELLER — CPG_TOOLS 완료 후 실행 (cpg_bed join으로 순서 강제)
-    ch_for_steller = hiphase_out.haplotagged_bam
-        .join(cpg_out.cpg_bed, by: 0)
-        .map { meta, bam, bai, cpg -> tuple(meta, bam, bai) }
-    steller_out = STELLER(ch_for_steller)
-
-    // STEP 09: ANNOTSV_TE — STELLER 완료 후 실행
-    annotsv_te_out = ANNOTSV_TE(steller_out.te_vcf)
-
-    // STEP 10: SNP_ANNOTATION (VEP) — ANNOTSV_TE 완료 후 실행 (te_annot join으로 순서 강제)
-    ch_for_snp = hiphase_out.snv_phased
-        .join(annotsv_te_out.te_annot, by: 0)
-        .map { meta, vcf, tbi, te -> tuple(meta, vcf, tbi) }
-    SNP_ANNOTATION(ch_for_snp)
-
-    // STEP 11: ANNOTSV_SV — SNP_ANNOTATION 과 병렬 (ANNOTSV_TE 완료 후)
-    ch_for_annotsv_sv = hiphase_out.sv_phased
-        .join(annotsv_te_out.te_annot, by: 0)
-        .map { meta, vcf, tbi, te -> tuple(meta, vcf, tbi) }
-    ANNOTSV_SV(ch_for_annotsv_sv)
-
-    // STEP 12: ANNOTSV_TR — SNP_ANNOTATION 과 병렬 (ANNOTSV_TE 완료 후)
-    ch_for_annotsv_tr = hiphase_out.tr_phased
-        .join(annotsv_te_out.te_annot, by: 0)
-        .map { meta, vcf, tbi, te -> tuple(meta, vcf, tbi) }
-    ANNOTSV_TR(ch_for_annotsv_tr)
 
     // QC
     ch_qc_input = pbmm2_out.flagstat

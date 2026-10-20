@@ -9,7 +9,7 @@
 # 선택 인자:
 #   --outdir        결과 출력 디렉토리 (기본: <pipeline_dir>/results)
 #   --threads       CPU 스레드 수 (기본: 16)
-#   --karyotype     TRGT 성별 설정 XY|XX (기본: XY)
+# 성별은 samplesheet 의 sex 열(XX|XY)로 샘플마다 지정 — TRGT/DeepVariant/Sawfish 에 반영
 #   --use_gpu       DeepVariant GPU 사용 true|false (기본: true)
 #   --vcf_dir       start_step=hiphase 일 때 기존 VCF 경로
 #   -resume         Nextflow 캐시 재사용 (중단된 파이프라인 재시작)
@@ -77,7 +77,6 @@ while [[ $# -gt 0 ]]; do
         --samplesheet) SAMPLESHEET="$2"; shift 2 ;;
         --outdir)      OUTDIR="$2";      EXTRA_ARGS+=("--outdir" "$2"); shift 2 ;;
         --threads)     EXTRA_ARGS+=("--threads" "$2");    shift 2 ;;
-        --karyotype)   EXTRA_ARGS+=("--karyotype" "$2");  shift 2 ;;
         --use_gpu)     EXTRA_ARGS+=("--use_gpu" "$2");    shift 2 ;;
         --vcf_dir)     EXTRA_ARGS+=("--vcf_dir" "$2");    shift 2 ;;
         *)             EXTRA_ARGS+=("$1"); shift ;;
@@ -94,7 +93,6 @@ if [[ -z "$SAMPLESHEET" ]]; then
     echo "선택 옵션:"
     echo "  --outdir        결과 출력 디렉토리 (기본: <pipeline_dir>/results)"
     echo "  --threads       CPU 스레드 수 (기본: 16)"
-    echo "  --karyotype     TRGT 성별 XY|XX (기본: XY)"
     echo "  --use_gpu       GPU 사용 true|false (기본: true)"
     echo "  --vcf_dir       hiphase 재시작 시 기존 VCF 경로"
     echo "  -resume         중단된 파이프라인 재시작"
@@ -116,9 +114,24 @@ INPUT_BAM_DIR="${PIPELINE_DIR}/input/bam"
 mkdir -p "${INPUT_BAM_DIR}"
 
 BAM_ERROR=0
-while IFS=',' read -r sample_id bam start_step; do
-    [[ "$sample_id" == "sample_id" ]] && continue
-    bam="$(echo "$bam" | tr -d '\r')"
+# 헤더 기준으로 열 위치를 찾음 (sample_id, bam, sex 필수)
+HEADER="$(head -1 "${SAMPLESHEET}" | tr -d '\r')"
+col_idx() { echo "$HEADER" | tr ',' '\n' | grep -nx "$1" | cut -d: -f1; }
+C_ID=$(col_idx sample_id); C_BAM=$(col_idx bam); C_SEX=$(col_idx sex)
+if [[ -z "$C_ID" || -z "$C_BAM" || -z "$C_SEX" ]]; then
+    echo "[ERROR] samplesheet 헤더에 sample_id, bam, sex 열이 모두 필요합니다: ${HEADER}"
+    exit 1
+fi
+while IFS= read -r line; do
+    line="$(echo "$line" | tr -d '\r')"
+    [[ -z "$line" ]] && continue
+    sample_id=$(echo "$line" | cut -d, -f"$C_ID")
+    bam=$(echo "$line" | cut -d, -f"$C_BAM")
+    sex=$(echo "$line" | cut -d, -f"$C_SEX" | tr '[:lower:]' '[:upper:]')
+    if [[ "$sex" != "XX" && "$sex" != "XY" ]]; then
+        echo "[ERROR] ${sample_id}: sex 값 '${sex}' — XX 또는 XY 필수"
+        BAM_ERROR=1
+    fi
     if [[ ! -f "$bam" ]]; then
         echo "[ERROR] BAM 파일 없음: ${bam}"
         BAM_ERROR=1
@@ -128,13 +141,13 @@ while IFS=',' read -r sample_id bam start_step; do
         echo "          ln -s ${bam} ${INPUT_BAM_DIR}/$(basename "$bam")"
         BAM_ERROR=1
     else
-        echo "[OK]    ${sample_id}: $(basename "$bam")"
+        echo "[OK]    ${sample_id} (${sex}): $(basename "$bam")"
     fi
-done < "${SAMPLESHEET}"
+done < <(tail -n +2 "${SAMPLESHEET}")
 
 if [[ $BAM_ERROR -ne 0 ]]; then
     echo ""
-    echo "[ERROR] samplesheet의 BAM 경로를 확인하세요."
+    echo "[ERROR] samplesheet의 BAM 경로 / sex 값을 확인하세요."
     echo "        모든 BAM은 ${INPUT_BAM_DIR}/ 안에 있어야 합니다."
     exit 1
 fi
