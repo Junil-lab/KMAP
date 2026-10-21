@@ -169,7 +169,7 @@ Memory: the largest step is DeepVariant (~31 GB peak in the test; up to 64 GB is
 
 ## Example
 
-[example/HG002_chr20XY/](example/HG002_chr20XY/) has a test run on HG002 (XY, chr20 + chrX + chrY): the script to rebuild the input BAM, the samplesheet, and all outputs except BAMs.
+[example/HG002_chr20XY/](example/HG002_chr20XY/) is a small test on HG002 (XY, chr20 + chrX + chrY, ~3 h on 5 cores): a script that downloads the input BAM from PacBio's public data, step-by-step commands to run it, the expected numbers to compare your results with, and the reference outputs (except BAMs). Run it once after installing, before real samples.
 
 ## Notes
 
