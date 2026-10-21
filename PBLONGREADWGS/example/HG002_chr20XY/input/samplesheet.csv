@@ -1,0 +1,2 @@
+sample_id,bam,sex,start_step
+HG002_XY,/absolute/path/to/PBLONGREADWGS/input/bam/HG002.chr20XY.hifi_reads.bam,XY,pbmm2

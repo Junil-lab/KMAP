@@ -9,7 +9,7 @@ for TYPE in Normal Tumor; do
   COLLECTION="$OUT_DIR/input_collection.tsv"
   mkdir -p "$OUT_DIR"
 
-  # input collection TSV 생성 (헤더: identifier \t filename \t labels)
+  # build the input collection TSV (header: identifier \t filename \t labels)
   if [ "$TYPE" = "Normal" ]; then
     cat > "$COLLECTION" <<EOF
 identifier	filename	labels
@@ -24,7 +24,7 @@ m84039_230415_002321_s3	$BASE/Tumor/m84039_230415_002321_s3	Tumor
 EOF
   fi
 
-  echo "[$TYPE joint-segment] 시작: $(date)"
+  echo "[$TYPE joint-segment] start: $(date)"
 
   methbat joint-segment \
     --input-collection "$COLLECTION" \
@@ -33,7 +33,7 @@ EOF
     --min-asm-abs-delta-mean 0.5 \
     --min-asm-frac 0.6
 
-  echo "[$TYPE joint-segment] 완료: $(date)"
+  echo "[$TYPE joint-segment] done: $(date)"
 done
 
-echo "[ALL DONE] 출력: $BASE/{Normal,Tumor}/joint_segment/"
+echo "[ALL DONE] output: $BASE/{Normal,Tumor}/joint_segment/"

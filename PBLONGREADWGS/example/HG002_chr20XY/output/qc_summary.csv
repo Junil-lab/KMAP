@@ -1,0 +1,2 @@
+sample_id,status,error,mapping_rate,total_reads,mapped_reads,total_sv,phased_variants,total_variants,phase_blocks,block_n50
+HG002_XY,success,,100.00%,399105,399105,3088,146382,656658,428,1021679

@@ -1,11 +1,11 @@
 #!/bin/bash
 # ============================================================
-# K_map PacBio WGS Pipeline v2 — 컨테이너 빌드 스크립트
+# K_map PacBio WGS Pipeline v2 — container build script
 #
-# 사용법:
-#   bash build_containers.sh          # 전체 빌드
-#   bash build_containers.sh main      # 메인 컨테이너만
-#   bash build_containers.sh deepvariant  # DV 컨테이너만 복사
+# Usage:
+#   bash build_containers.sh          # build everything
+#   bash build_containers.sh main      # main container only
+#   bash build_containers.sh deepvariant  # copy the DV container only
 # ============================================================
 set -euo pipefail
 
@@ -16,10 +16,10 @@ DEF_DIR="${SCRIPT_DIR}"
 MODE="${1:-all}"
 
 build_main() {
-    echo "[$(date)] 메인 컨테이너 빌드 시작 (약 15~30분)..."
+    echo "[$(date)] building main container (about 15-30 min)..."
     echo "[$(date)] kmap_pbwgs_v2.sif — pbmm2/samtools/hiphase/trgt/sawfish/CpG/jasmine/AnnotSV"
 
-    # NFS(NAS_2)에 --fakeroot로 직접 쓰기 불가 → 로컬 SSD에 빌드 후 NAS_2로 복사
+    # --fakeroot cannot write directly to NFS (NAS_2) → build on local SSD, then copy to NAS_2
     LOCAL_SIF="/home/Data_Drive_8TB_3/kmap_pbwgs_v2_build.sif"
 
     singularity build \
@@ -28,40 +28,40 @@ build_main() {
         "${DEF_DIR}/kmap_pbwgs.def" \
         2>&1 | tee /tmp/build_main_v2.log
 
-    echo "[$(date)] 메인 컨테이너 빌드 완료: $(du -sh ${LOCAL_SIF} | cut -f1)"
+    echo "[$(date)] main container built: $(du -sh ${LOCAL_SIF} | cut -f1)"
 
-    echo "[$(date)] 컨테이너 테스트..."
+    echo "[$(date)] testing container..."
     singularity test "${LOCAL_SIF}"
 
-    echo "[$(date)] NAS로 복사 중..."
+    echo "[$(date)] copying to NAS..."
     cp "${LOCAL_SIF}" "${OUT_DIR}/kmap_pbwgs_v2.sif"
     rm -f "${LOCAL_SIF}"
-    echo "[$(date)] 복사 완료: $(du -sh ${OUT_DIR}/kmap_pbwgs_v2.sif | cut -f1)"
+    echo "[$(date)] copied: $(du -sh ${OUT_DIR}/kmap_pbwgs_v2.sif | cut -f1)"
 }
 
 copy_deepvariant() {
-    # DeepVariant는 Google 공식 SIF를 그대로 사용
-    echo "[$(date)] DeepVariant SIF 복사..."
+    # DeepVariant uses the official Google SIF as is
+    echo "[$(date)] copying DeepVariant SIF..."
     DV_SRC="/home/NAS/senc0711/K_map/deepvariant/deepvariant_1.9.0-gpu.sif"
     if [ -f "$DV_SRC" ]; then
         cp "$DV_SRC" "${OUT_DIR}/deepvariant_1.9.0-gpu.sif"
-        echo "[$(date)] DeepVariant SIF 복사 완료: $(du -sh ${OUT_DIR}/deepvariant_1.9.0-gpu.sif | cut -f1)"
+        echo "[$(date)] DeepVariant SIF copied: $(du -sh ${OUT_DIR}/deepvariant_1.9.0-gpu.sif | cut -f1)"
     else
-        echo "[WARN] DeepVariant SIF 없음 — 수동으로 복사 필요"
-        echo "  출처: https://github.com/google/deepvariant/releases"
-        echo "  목적: ${OUT_DIR}/deepvariant_1.9.0-gpu.sif"
+        echo "[WARN] DeepVariant SIF not found — copy it manually"
+        echo "  Source: https://github.com/google/deepvariant/releases"
+        echo "  Destination: ${OUT_DIR}/deepvariant_1.9.0-gpu.sif"
     fi
 }
 
 copy_vep() {
-    # VEP SIF 복사
-    echo "[$(date)] VEP SIF 복사..."
+    # copy the VEP SIF
+    echo "[$(date)] copying VEP SIF..."
     VEP_SRC="/home/NAS/K_MAP/Pacbio/WGS/Pipeline/ver1/output/hiphase/VEP/container/ensembl-vep-release_115.0.sif"
     if [ -f "$VEP_SRC" ]; then
         cp "$VEP_SRC" "${OUT_DIR}/ensembl-vep-release_115.0.sif"
-        echo "[$(date)] VEP SIF 복사 완료"
+        echo "[$(date)] VEP SIF copied"
     else
-        echo "[WARN] VEP SIF 없음"
+        echo "[WARN] VEP SIF not found"
     fi
 }
 
@@ -74,11 +74,11 @@ case "$MODE" in
         copy_deepvariant
         copy_vep
         echo ""
-        echo "=== 빌드 완료 ==="
+        echo "=== build finished ==="
         ls -lh "${OUT_DIR}/"*.sif
         ;;
     *)
-        echo "사용법: bash build_containers.sh [main|deepvariant|vep|all]"
+        echo "Usage: bash build_containers.sh [main|deepvariant|vep|all]"
         exit 1
         ;;
 esac

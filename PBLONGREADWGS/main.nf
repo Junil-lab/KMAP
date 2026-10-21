@@ -3,25 +3,25 @@ nextflow.enable.dsl = 2
 
 // ============================================================
 // K_map PacBio HiFi WGS Pipeline v2
-// 완전 독립형 — 모든 툴이 Singularity 컨테이너 안에 포함
+// Fully self-contained: every tool runs inside a Singularity container
 //
-// 단계:
-//   01 methyl_bam        ← JASMINE  (kinetics BAM만)
+// Steps:
+//   01 methyl_bam        ← JASMINE  (kinetics BAMs only)
 //   02 aligned_bam       ← PBMM2
 //   03 small_variants    ← DEEPVARIANT (GPU)
 //   04 structural_var    ← SAWFISH
 //   05 tandem_repeats    ← TRGT
-//   06 phasing           ← HIPHASE (SNV+SV+TR 동시)
+//   06 phasing           ← HIPHASE (joint SNV+SV+TR)
 //   07 CpG_methylation   ← pb-CpG-tools
-//   (VEP / AnnotSV 어노테이션, sTELLeR TE 검출 단계는 제거됨)
+//   (VEP / AnnotSV annotation and sTELLeR TE detection steps have been removed)
 //
 // samplesheet CSV: sample_id, bam, sex, start_step
-//   sex: XX | XY  (필수 — TRGT karyotype, DeepVariant haploid, Sawfish expected CN 에 사용)
+//   sex: XX | XY  (required; used for TRGT karyotype, DeepVariant haploid calling, Sawfish expected CN)
 //   start_step: jasmine | pbmm2 | deepvariant | hiphase
 // ============================================================
 
 // ============================================================
-// STEP 01: JASMINE — kinetics 태그 → MM/ML 메틸화 태그 변환
+// STEP 01: JASMINE — kinetics tags → MM/ML methylation tags
 // ============================================================
 process JASMINE {
     tag "${meta.id}"
@@ -44,7 +44,7 @@ process JASMINE {
 }
 
 // ============================================================
-// STEP 02: PBMM2 — GRCh38_no_alt_analysis_set 정렬
+// STEP 02: PBMM2 — alignment to GRCh38_no_alt_analysis_set
 // ============================================================
 process PBMM2 {
     tag "${meta.id}"
@@ -79,7 +79,7 @@ process PBMM2 {
 
 // ============================================================
 // STEP 03: DEEPVARIANT — SNV/Indel calling (GPU)
-// 레퍼런스: GRCh38_no_alt_analysis_set (unplaced contig 제거 → exit 245 방지)
+// Reference: GRCh38_no_alt_analysis_set (no unplaced contigs → avoids exit 245)
 // ============================================================
 process DEEPVARIANT {
     tag "${meta.id}"
@@ -97,7 +97,7 @@ process DEEPVARIANT {
     path "${meta.id}.deepvariant.g.vcf.gz.tbi"
 
     script:
-    // XY: PAR 밖 chrX/chrY 를 haploid 로 콜링
+    // XY: call chrX/chrY outside the PARs as haploid
     def haploid_args = meta.sex == 'XY' ? "--haploid_contigs=chrX,chrY --par_regions_bed=${params.par_bed}" : ""
     """
     mkdir -p tmp_dv
@@ -140,7 +140,7 @@ process SAWFISH {
         --output-dir discover \\
         --threads ${params.threads}
 
-    # expected CN 1 인 구간(XY 의 chrX/chrY)은 SV 도 haploid 로 genotyping
+    # regions with expected CN 1 (chrX/chrY in XY) are genotyped as haploid SVs too
     sawfish joint-call \\
         --sample discover \\
         --treat-single-copy-as-haploid \\
@@ -193,7 +193,7 @@ process TRGT {
 }
 
 // ============================================================
-// STEP 06: HIPHASE — SNV + SV + TR 동시 phasing
+// STEP 06: HIPHASE — joint SNV + SV + TR phasing
 // ============================================================
 process HIPHASE {
     tag "${meta.id}"
@@ -249,7 +249,7 @@ process HIPHASE {
 }
 
 // ============================================================
-// STEP 07: CPG_TOOLS — CpG 메틸화 (haplotype-aware)
+// STEP 07: CPG_TOOLS — CpG methylation (haplotype-aware)
 // ============================================================
 process CPG_TOOLS {
     tag "${meta.id}"
@@ -388,16 +388,16 @@ PYEOF
 // MEMORY_MONITOR
 // ============================================================
 process MEMORY_MONITOR {
-    // QC_MERGE 완료(= 파이프라인 전체 종료) 후 실행됨.
-    // 실행 중 메모리 기록은 run.sh의 외부 백그라운드 루프(system_memory.tsv)가 담당.
-    // 이 프로세스는 각 샘플별 완료 시점 스냅샷 + 실행된 프로세스 목록을 기록한다.
+    // Runs after QC_MERGE finishes (= end of the whole pipeline).
+    // Memory during the run is recorded by the background loop in run.sh (system_memory.tsv).
+    // This process records a per-sample snapshot at completion + the list of processes that ran.
     tag "${meta.id}"
     container params.main_sif
     publishDir { "${params.outdir}/${meta.id}/logs" }, mode: 'copy'
 
     input:
     val meta
-    val done_signal   // QC_MERGE 출력 파일명 (완료 신호)
+    val done_signal   // QC_MERGE output file name (completion signal)
 
     output:
     path "pipeline_done.tsv"
@@ -422,7 +422,7 @@ workflow {
         .map { row ->
             def sex        = (row.sex ?: '').trim().toUpperCase()
             if (!(sex in ['XX', 'XY'])) {
-                error "samplesheet: ${row.sample_id} 의 sex 값이 '${row.sex}' — XX 또는 XY 필수"
+                error "samplesheet: sex of ${row.sample_id} is '${row.sex}' — must be XX or XY"
             }
             def meta       = [id: row.sample_id, sex: sex]
             def bam        = file(row.bam)
@@ -437,7 +437,7 @@ workflow {
         hiphase:     it[2] == 'hiphase'
     }.set { ch_branched }
 
-    // 메모리 모니터는 QC_MERGE 완료 후 실행 (파이프라인 전체 종료 시점 포착)
+    // Memory monitor runs after QC_MERGE (captures the end of the whole pipeline)
 
     // STEP 01: JASMINE
     ch_for_jasmine = ch_branched.jasmine.map { meta, bam, step -> tuple(meta, bam) }
@@ -450,7 +450,7 @@ workflow {
         .mix(ch_methyl_for_pbmm2)
     pbmm2_out = PBMM2(ch_for_pbmm2)
 
-    // ch_aligned: PBMM2 출력 → 여러 단계 재사용
+    // ch_aligned: PBMM2 output → reused by several steps
     pbmm2_out.aligned_bam
         .multiMap { meta, bam, bai ->
             for_dv:       tuple(meta, bam, bai)
@@ -460,7 +460,7 @@ workflow {
         }
         .set { ch_aligned }
 
-    // start_step=deepvariant 일 때 BAM 공급
+    // supply the BAM when start_step=deepvariant
     ch_dv_bam = ch_branched.deepvariant
         .map { meta, bam, step -> tuple(meta, bam, file("${bam}.bai")) }
     ch_dv_bam
@@ -476,21 +476,21 @@ workflow {
     ch_for_dv = ch_dv_entry.for_dv.mix(ch_aligned.for_dv)
     dv_out    = DEEPVARIANT(ch_for_dv)
 
-    // STEP 04: SAWFISH — DV 완료 후 실행 (DV VCF join으로 순서 강제)
+    // STEP 04: SAWFISH — runs after DV (ordering enforced by joining on the DV VCF)
     ch_for_sawfish = ch_dv_entry.for_sawfish
         .mix(ch_aligned.for_sawfish)
         .join(dv_out.snv_vcf, by: 0)
         .map { meta, bam, bai, snv_vcf, snv_tbi -> tuple(meta, bam, bai) }
     sawfish_out = SAWFISH(ch_for_sawfish)
 
-    // STEP 05: TRGT — SAWFISH 완료 후 실행 (SAWFISH stats join으로 순서 강제)
+    // STEP 05: TRGT — runs after SAWFISH (ordering enforced by joining on the SAWFISH stats)
     ch_for_trgt = ch_dv_entry.for_trgt
         .mix(ch_aligned.for_trgt)
         .join(sawfish_out.stats, by: 0)
         .map { meta, bam, bai, stats -> tuple(meta, bam, bai) }
     trgt_out = TRGT(ch_for_trgt)
 
-    // STEP 06: HIPHASE — DV + SAWFISH + TRGT 모두 완료 후 실행
+    // STEP 06: HIPHASE — runs after DV + SAWFISH + TRGT all finish
     ch_for_hiphase = ch_dv_entry.for_hiphase
         .mix(ch_aligned.for_hiphase)
         .join(sawfish_out.sv_vcf, by: 0)
@@ -515,7 +515,7 @@ workflow {
 
     hiphase_out = HIPHASE(ch_for_hiphase.mix(ch_hiphase_extra))
 
-    // STEP 07: CPG_TOOLS — haplotagged BAM → CpG methylation (가장 먼저)
+    // STEP 07: CPG_TOOLS — haplotagged BAM → CpG methylation
     cpg_out = CPG_TOOLS(hiphase_out.haplotagged_bam)
 
     // QC
@@ -528,7 +528,7 @@ workflow {
     qc_per_sample = QC_COLLECT(ch_qc_input)
     qc_merge_out  = QC_MERGE(qc_per_sample.qc_csv.collect())
 
-    // MEMORY_MONITOR: QC_MERGE 완료(= 파이프라인 전체 종료) 후 실행
+    // MEMORY_MONITOR: runs after QC_MERGE (= end of the whole pipeline)
     ch_meta      = ch_input.map { meta, bam, step -> meta }
     ch_done_sig  = qc_merge_out.map { f -> f.name }
     MEMORY_MONITOR(ch_meta.combine(ch_done_sig).map { meta, sig -> meta },

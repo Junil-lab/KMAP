@@ -14,7 +14,7 @@ From: condaforge/mambaforge:23.3.1-1
     #!/bin/bash
     set -eu
 
-    # ── 기본 시스템 패키지 ────────────────────────────────────
+    # ── Base system packages ──────────────────────────────────
     apt-get update -qq && apt-get install -y --no-install-recommends \
         wget curl git ca-certificates \
         libssl-dev zlib1g-dev libbz2-dev liblzma-dev \
@@ -22,7 +22,7 @@ From: condaforge/mambaforge:23.3.1-1
         python3-pip build-essential \
         && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-    # ── conda 환경 생성 (bioconda + conda-forge) ─────────────
+    # ── Create conda environment (bioconda + conda-forge) ─────
     conda config --add channels defaults
     conda config --add channels bioconda
     conda config --add channels conda-forge
@@ -47,17 +47,17 @@ From: condaforge/mambaforge:23.3.1-1
         2>&1
 
     # ── jasmine (PacBio kinetics methylation caller) ─────────
-    # bioconda의 jasmine (SV merger 아님 — PacBio jasmine)
+    # jasmine from bioconda (PacBio jasmine, not the SV merger)
     mamba install -y -n kmap -c hcc jasmine=2.7.99 2>/dev/null || \
     mamba install -y -n kmap -c bioconda jasmine 2>/dev/null || true
 
-    # ── sTELLeR (TE caller) — pip 의존성만 설치 ──────────────
+    # ── sTELLeR (TE caller) — install pip dependencies only ──
     /opt/conda/envs/kmap/bin/pip install pysam biopython scikit-learn matplotlib numpy 2>/dev/null || true
 
-    # ── conda 캐시 정리 ───────────────────────────────────────
+    # ── Clean conda cache ─────────────────────────────────────
     conda clean -afy
 
-    # ── PATH 설정 ─────────────────────────────────────────────
+    # ── PATH setup ────────────────────────────────────────────
     echo ". /opt/conda/etc/profile.d/conda.sh && conda activate kmap" \
         >> /etc/bash.bashrc
     echo "export PATH=/opt/conda/envs/kmap/bin:\$PATH" \
