@@ -36,21 +36,28 @@ For cell lines whose karyotype differs from the donor's sex (e.g. a line that lo
 | Java 17+ | system or conda | Nextflow 26 needs Java 17+ (`conda create -p .java17 -c conda-forge openjdk=17`) |
 | Singularity / Apptainer | system | |
 | GPU (optional) | – | for DeepVariant; without one use `--use_gpu false` |
-| `containers/kmap_pbwgs_v2.sif` | distributed separately | pbmm2, jasmine, sawfish, trgt, hiphase, pb-CpG-tools, samtools/bcftools — can be built with `def/build_containers.sh` |
-| `containers/deepvariant_1.9.0-gpu.sif` | distributed separately | `google/deepvariant:1.9.0-gpu` |
+| `containers/kmap_pbwgs_v2.sif` | [GitHub Release v1.0.0](https://github.com/hi6167579-droid/KMAP_Pipeline/releases/tag/v1.0.0) | pbmm2, jasmine, sawfish, trgt, hiphase, pb-CpG-tools, samtools/bcftools — can be built with `def/build_containers.sh` |
+| `containers/deepvariant_1.9.0-gpu.sif` | Docker Hub | `google/deepvariant:1.9.0-gpu` |
 | `resources/ref/GRCh38_no_alt_analysis_set.fna` (+ `.fai`, `.mmi`) | distributed separately | |
 | `resources/ref/trgt/adotto_strchive_20250827.hg38.noFailTag.bed.gz` | **in this repo** | catalog from the PacBio HiFi-human-WGS-WDL v4.0.0 reference bundle (Zenodo) with the `;INCLUDE_FAIL_READS` tag removed (same processing as the WDL) |
 | `resources/ref/sex/*.bed` | **in this repo** | PAR BED, Sawfish expected copy number BEDs |
 
-SIFs, the GRCh38 reference and BAMs are not in the repo because of their size (`.gitignore`). Ask the lab admin for their location on the lab server.
+The GRCh38 reference and BAMs are not in the repo because of their size (`.gitignore`). Ask the lab admin for their location on the lab server.
 
 ## Running
 
 ### 1. Check the environment (once)
 
 ```bash
-git clone <this repo>
-cd PBLONGREADWGS
+git clone https://github.com/hi6167579-droid/KMAP_Pipeline.git
+cd KMAP_Pipeline/PBLONGREADWGS
+
+# containers
+wget -O containers/kmap_pbwgs_v2.sif \
+  https://github.com/hi6167579-droid/KMAP_Pipeline/releases/download/v1.0.0/kmap_pbwgs_v1.0.0.sif
+singularity pull containers/deepvariant_1.9.0-gpu.sif docker://google/deepvariant:1.9.0-gpu
+
+# GRCh38 reference (+ .fai, .mmi) goes in resources/ref/ (see Requirements)
 bash setup.sh          # checks Java / Singularity / nextflow / SIFs / references; all [OK] means ready
 ```
 
