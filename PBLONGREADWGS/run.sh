@@ -39,19 +39,14 @@ set -euo pipefail
 
 PIPELINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Java 17+ — use the system java first, otherwise look in conda environments
-if ! java -version 2>&1 | grep -qE 'version "1[1-9]|version "[2-9][0-9]'; then
-    # no system java or version too old → search conda environments
-    JAVA_CANDIDATES=$(find /home /opt /usr/local -name "java" -path "*/bin/java" 2>/dev/null \
-                      | xargs -I{} sh -c '{} -version 2>&1 | grep -qE "version \"1[1-9]|version \"[2-9][0-9]" && echo {}' 2>/dev/null \
-                      | head -1)
-    if [[ -n "$JAVA_CANDIDATES" ]]; then
-        export JAVA_HOME="$(dirname "$(dirname "$JAVA_CANDIDATES")")"
-        export PATH="${JAVA_HOME}/bin:${PATH}"
-    else
-        echo "[ERROR] Java 11+ is required. Install java or set JAVA_HOME."
-        exit 1
-    fi
+# Java 17+ — <pipeline_dir>/.java17 (installed by setup.sh) first, then the system java
+if [[ -x "${PIPELINE_DIR}/.java17/bin/java" ]]; then
+    export JAVA_HOME="${PIPELINE_DIR}/.java17"
+    export PATH="${JAVA_HOME}/bin:${PATH}"
+fi
+if ! java -version 2>&1 | grep -qE 'version "(1[7-9]|[2-9][0-9])'; then
+    echo "[ERROR] Java 17+ is required (Nextflow 26). Run: bash setup.sh   (installs it into .java17/)"
+    exit 1
 fi
 
 # nextflow binary: wrapper in the repo first, otherwise PATH

@@ -4,7 +4,7 @@
 # run once after git clone
 #
 # What this script does:
-#   1. check Java 11+
+#   1. check Java 17+ (downloaded into .java17/ if missing)
 #   2. check Singularity
 #   3. check the nextflow binary (downloaded automatically if missing)
 #   4. check containers/ (where the SIF files go)
@@ -26,12 +26,34 @@ echo "============================================================"
 echo ""
 
 # ── 1. Java ──────────────────────────────────────────────────
-echo "[1] Java 11+"
-if java -version 2>&1 | grep -qE 'version "1[1-9]|version "[2-9][0-9]'; then
-    VER=$(java -version 2>&1 | head -1)
-    check "$VER"
+# Nextflow 26 needs Java 17+. If none is found, OpenJDK 17 (Eclipse Temurin)
+# is downloaded into <pipeline_dir>/.java17 — run.sh uses it automatically.
+echo "[1] Java 17+"
+JAVA_LOCAL="${PIPELINE_DIR}/.java17"
+java_ok() { "$1" -version 2>&1 | grep -qE 'version "(1[7-9]|[2-9][0-9])'; }
+if [[ -x "${JAVA_LOCAL}/bin/java" ]] && java_ok "${JAVA_LOCAL}/bin/java"; then
+    check "local $("${JAVA_LOCAL}/bin/java" -version 2>&1 | head -1)  (${JAVA_LOCAL})"
+elif command -v java &>/dev/null && java_ok java; then
+    check "system $(java -version 2>&1 | head -1)"
 else
-    fail "Java 11+ is required. conda install -c conda-forge openjdk=17"
+    warn "Java 17+ not found — downloading OpenJDK 17 into ${JAVA_LOCAL}"
+    case "$(uname -m)" in
+        x86_64)  ARCH=x64 ;;
+        aarch64) ARCH=aarch64 ;;
+        *)       ARCH="" ;;
+    esac
+    URL="https://api.adoptium.net/v3/binary/latest/17/ga/linux/${ARCH}/jdk/hotspot/normal/eclipse"
+    if [[ -n "$ARCH" ]] && mkdir -p "${JAVA_LOCAL}" \
+        && curl -fsSL "$URL" | tar -xz -C "${JAVA_LOCAL}" --strip-components=1 \
+        && java_ok "${JAVA_LOCAL}/bin/java"; then
+        check "installed $("${JAVA_LOCAL}/bin/java" -version 2>&1 | head -1)  (${JAVA_LOCAL})"
+    else
+        rm -rf "${JAVA_LOCAL}"
+        fail "Java 17 download failed. Install it manually: conda create -p ${JAVA_LOCAL} -c conda-forge openjdk=17"
+    fi
+fi
+if [[ -x "${JAVA_LOCAL}/bin/java" ]]; then
+    export JAVA_HOME="${JAVA_LOCAL}"; export PATH="${JAVA_HOME}/bin:${PATH}"
 fi
 
 # ── 2. Singularity ───────────────────────────────────────────
@@ -73,8 +95,9 @@ for sif in kmap_pbwgs_v2.sif deepvariant_1.9.0-gpu.sif; do
 done
 if [[ $MISSING_SIF -gt 0 ]]; then
     echo ""
-    echo "  Copy the SIF files into containers/:"
-    echo "    cp /path/to/*.sif ${PIPELINE_DIR}/containers/"
+    echo "  Download them:"
+    echo "    wget -O ${PIPELINE_DIR}/containers/kmap_pbwgs_v2.sif https://github.com/hi6167579-droid/KMAP_Pipeline/releases/download/v1.0.0/kmap_pbwgs_v1.0.0.sif"
+    echo "    singularity pull ${PIPELINE_DIR}/containers/deepvariant_1.9.0-gpu.sif docker://google/deepvariant:1.9.0-gpu"
 fi
 
 # ── 5. Reference files ───────────────────────────────────────

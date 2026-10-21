@@ -33,7 +33,7 @@ For cell lines whose karyotype differs from the donor's sex (e.g. a line that lo
 
 | Item | Location | Notes |
 |---|---|---|
-| Java 17+ | system or conda | Nextflow 26 needs Java 17+ (`conda create -p .java17 -c conda-forge openjdk=17`) |
+| Java 17+ | system, or **installed automatically** by `setup.sh` | Nextflow 26 needs Java 17+. If missing, `setup.sh` downloads OpenJDK 17 into `.java17/` and `run.sh` uses it |
 | Singularity / Apptainer | system | |
 | GPU (optional) | – | for DeepVariant; without one use `--use_gpu false` |
 | `containers/kmap_pbwgs_v2.sif` | [GitHub Release v1.0.0](https://github.com/hi6167579-droid/KMAP_Pipeline/releases/tag/v1.0.0) | pbmm2, jasmine, sawfish, trgt, hiphase, pb-CpG-tools, samtools/bcftools — can be built with `def/build_containers.sh` |
@@ -58,7 +58,7 @@ wget -O containers/kmap_pbwgs_v2.sif \
 singularity pull containers/deepvariant_1.9.0-gpu.sif docker://google/deepvariant:1.9.0-gpu
 
 # GRCh38 reference (+ .fai, .mmi) goes in resources/ref/ (see Requirements)
-bash setup.sh          # checks Java / Singularity / nextflow / SIFs / references; all [OK] means ready
+bash setup.sh          # installs Java 17 if needed; checks Singularity / nextflow / SIFs / references; all [OK] means ready
 ```
 
 ### 2. Write a samplesheet
