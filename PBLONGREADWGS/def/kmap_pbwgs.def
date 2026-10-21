@@ -7,8 +7,8 @@ From: condaforge/mambaforge:23.3.1-1
     Description PacBio HiFi WGS — all tools in one container
     Tools       pbmm2=26.1.99 samtools=1.23.1 bcftools=1.23.1 \
                 hiphase=1.6.0 trgt=5.0.0 sawfish=2.2.1 \
-                pb-cpg-tools=3.0.0 jasmine=2.7.99 \
-                annotsv=3.5.8 bedtools=2.31.1
+                pb-cpg-tools=3.0.0 pbjasmine=2.7.99 \
+                minimap2=2.31 bedtools=2.31.1
 
 %post
     #!/bin/bash
@@ -39,20 +39,12 @@ From: condaforge/mambaforge:23.3.1-1
         trgt=5.0.0 \
         sawfish=2.2.1 \
         "pb-cpg-tools=3.0.0" \
-        annotsv=3.5.8 \
-        minimap2 \
+        pbjasmine=2.7.99 \
+        minimap2=2.31 \
         pysam \
         biopython \
         numpy \
         2>&1
-
-    # ── jasmine (PacBio kinetics methylation caller) ─────────
-    # jasmine from bioconda (PacBio jasmine, not the SV merger)
-    mamba install -y -n kmap -c hcc jasmine=2.7.99 2>/dev/null || \
-    mamba install -y -n kmap -c bioconda jasmine 2>/dev/null || true
-
-    # ── sTELLeR (TE caller) — install pip dependencies only ──
-    /opt/conda/envs/kmap/bin/pip install pysam biopython scikit-learn matplotlib numpy 2>/dev/null || true
 
     # ── Clean conda cache ─────────────────────────────────────
     conda clean -afy
@@ -80,6 +72,7 @@ From: condaforge/mambaforge:23.3.1-1
     sawfish     --version 2>&1 | head -1
     aligned_bam_to_cpg_scores --version 2>&1 | head -1
     bedtools    --version 2>&1 | head -1
-    AnnotSV     --version 2>&1 | head -2
+    jasmine     --version 2>&1 | head -1
+    minimap2    --version 2>&1 | head -1
     python3     --version
     echo "=== all tools OK ==="
