@@ -58,3 +58,5 @@ Sex-aware calls (XY):
 | TRGT | all haploid (chrY: 3,529 called, 17 missing) | chrX PAR also haploid (TRGT `--karyotype XY` behaviour) |
 
 Phasing (chr20): 88.5% of SNVs phased, NG50 1.02 Mb.
+
+> **Note on `04_structural_var`**: the SV VCF contains whole-chromosome `<DEL>` CNV records with `CN=0` on every chromosome and contig other than chr20/X/Y (e.g. chr1:1-248956000). These are artefacts of the test input, which only has reads on chr20, chrX and chrY; they do not appear in whole-genome runs.
