@@ -39,10 +39,10 @@ For cell lines whose karyotype differs from the donor's sex (e.g. a line that lo
 | `containers/kmap_pbwgs_v2.sif` | distributed separately | pbmm2, jasmine, sawfish, trgt, hiphase, pb-CpG-tools, samtools/bcftools — can be built with `def/build_containers.sh` |
 | `containers/deepvariant_1.9.0-gpu.sif` | distributed separately | `google/deepvariant:1.9.0-gpu` |
 | `resources/ref/GRCh38_no_alt_analysis_set.fna` (+ `.fai`, `.mmi`) | distributed separately | |
-| `resources/ref/trgt/adotto_strchive_20250827.hg38.noFailTag.bed.gz` | distributed separately | catalog from the PacBio HiFi-human-WGS-WDL v4.0.0 reference bundle (Zenodo) with the `;INCLUDE_FAIL_READS` tag removed (same processing as the WDL) |
+| `resources/ref/trgt/adotto_strchive_20250827.hg38.noFailTag.bed.gz` | **in this repo** | catalog from the PacBio HiFi-human-WGS-WDL v4.0.0 reference bundle (Zenodo) with the `;INCLUDE_FAIL_READS` tag removed (same processing as the WDL) |
 | `resources/ref/sex/*.bed` | **in this repo** | PAR BED, Sawfish expected copy number BEDs |
 
-SIFs, references and BAMs are not in the repo because of their size (`.gitignore`). Ask the lab admin for their location on the lab server.
+SIFs, the GRCh38 reference and BAMs are not in the repo because of their size (`.gitignore`). Ask the lab admin for their location on the lab server.
 
 ## Running
 
