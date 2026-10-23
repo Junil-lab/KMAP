@@ -62,6 +62,8 @@ On the K-MAP lab server the files already exist; link them instead of downloadin
 ln -s /home/NAS_2/K_MAP/PacBio_WGS_pipeline_v2/resources/ref/GRCh38_no_alt_analysis_set.fna* PBLONGREADWGS/resources/ref/
 ```
 
+Symlinked references are fine: `run.sh` finds the real location of every link in `resources/ref/` and binds it into the containers. If the links point to a slow network disk, the first read of the 5.8 GB `.mmi` by pbmm2 can take a long time; a copy on a local disk is faster.
+
 ## Running
 
 ### 1. Check the environment (once)

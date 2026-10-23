@@ -147,6 +147,15 @@ if [[ $BAM_ERROR -ne 0 ]]; then
     exit 1
 fi
 
+# ── Bind real locations of symlinked references ──────────────
+# resources/ref/ files may be symlinks to another disk (e.g. a shared NAS);
+# the containers only see projectDir, so bind the link targets too.
+REF_BINDS=$(find "${PIPELINE_DIR}/resources/ref" -type l -exec readlink -f {} \; 2>/dev/null \
+            | xargs -r -n1 dirname | grep -v "^${PIPELINE_DIR}" | sort -u | paste -sd, -)
+if [[ -n "$REF_BINDS" ]]; then
+    export KMAP_EXTRA_BINDS="${REF_BINDS}"   # read by nextflow.config (singularity.runOptions)
+fi
+
 # ── external memory monitor (every 5 s, for the whole run) ──
 LOG_DIR="${OUTDIR}/logs"
 mkdir -p "$LOG_DIR"
