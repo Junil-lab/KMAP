@@ -173,7 +173,7 @@ Nextflow keeps every intermediate file in the work directory, and outputs are **
 | | `*.cellbender_cleaned*.csv`, `*.pdf` | called cell barcodes, metrics, training / cell-probability plots |
 | `03_scanpy_qc` | `*_qc_full.h5ad` | all genes, cells that passed QC; no SOLO labels yet |
 | | `*_qc_hvg2000.h5ad` | HVG subset used to train SOLO (not for final analysis) |
-| | `*.qc_metrics.csv` | cells / genes before and after QC, cells removed per filter, median counts / genes / % MT before and after |
+| | `*.qc_metrics.csv` | cells / genes before and after QC, cells removed (total and by the MT filter), median counts / genes / % MT before and after |
 | `04_solo` | `*.solo/` | SOLO model output: `soloed.h5ad`, doublet scores, plots |
 | `05_singlets` | `*_qc_solo_annotated_full.h5ad` | every QC-passed cell, with `solo_is_doublet`, `solo_softmax_scores`, `solo_logit_scores` in `obs` |
 | | `*_qc_solo_singlets_full.h5ad` | only `solo_is_doublet == False` cells — **the matrix for downstream analysis** |
