@@ -1,36 +1,40 @@
-# Nextflow 실행 캐시/로그
+# Nextflow run cache / logs
 .nextflow/
 .nextflow.log*
 work/
 
-# 대용량 바이너리 (별도 배포)
+# Large binaries (distributed separately)
 PBLONGREADWGS/containers/*.sif
 
-# 레퍼런스 데이터 (별도 배포)
+# Reference data (distributed separately)
 PBLONGREADWGS/resources/ref/*
 !PBLONGREADWGS/resources/ref/sex/
 !PBLONGREADWGS/resources/ref/trgt/
 
-# 파이프라인 결과물
+# Pipeline outputs
 results/
 
-# 샘플시트 (경로가 머신마다 다름) — samples.csv 템플릿만 추적
+# Samplesheets (paths differ per machine) — only the samples.csv template is tracked
 PBLONGREADWGS/input/kmap_*.csv
 PBLONGREADWGS/input/hg002_*.csv
 
-# 대용량 BAM 파일
+# Large BAM files
 PBLONGREADWGS/input/*.bam
 PBLONGREADWGS/input/*.bam.bai
 
-# 시스템 파일
+# System files
 .DS_Store
 PBLONGREADWGS/containers/build_main.log
 PBLONGREADWGS/containers/*.log
 PBLONGREADWGS/docs/*.pptx
 
-# 로컬 실행 환경 / 테스트 (배포 제외)
+# Local run environment / tests (not distributed)
 .java17/
 tools/
 test_runs/
 logs/
 PBLONGREADWGS/resources/downloads/
+
+# Python bytecode
+__pycache__/
+*.pyc
