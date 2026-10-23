@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -226,8 +226,8 @@
   <main>
     <h1>scRNA-seq Preprocessing and QC Pipeline</h1>
     <p class="subtitle">
-      10x Genomics FASTQ를 입력으로 받아 Cell Ranger, CellBender, Scanpy, SOLO를 순차적으로 실행하고,
-      QC 완료 matrix, doublet annotation, singlet-only matrix, 샘플별 QC summary를 생성하는 워크플로우입니다.
+      Takes 10x Genomics FASTQ, runs Cell Ranger, CellBender, Scanpy and SOLO in order,
+      and writes the QC-passed matrix, doublet annotation, singlet-only matrix and a per-sample QC summary.
     </p>
 
     <div class="meta">
@@ -293,7 +293,7 @@
               <code>metrics_summary.csv</code>, <code>web_summary.html</code>
             </td>
             <td><a href="https://www.10xgenomics.com/support/software/cell-ranger/latest">Cell Ranger</a></td>
-            <td>FASTQ에서 barcode/UMI를 처리하고 gene expression feature-barcode matrix를 생성합니다.</td>
+            <td>Processes barcodes/UMIs from FASTQ and builds the gene expression feature-barcode matrix.</td>
           </tr>
           <tr>
             <td class="step-id">Step2</td>
@@ -301,7 +301,7 @@
             <td><code>raw_feature_bc_matrix.h5</code></td>
             <td><code>{sample}.cellbender_cleaned.h5</code></td>
             <td><a href="https://github.com/broadinstitute/CellBender">CellBender</a></td>
-            <td>Ambient RNA와 background noise를 보정해 downstream QC에 사용할 cleaned count matrix를 만듭니다.</td>
+            <td>Corrects ambient RNA and background noise to produce the cleaned count matrix used for downstream QC.</td>
           </tr>
           <tr>
             <td class="step-id">Step3</td>
@@ -313,8 +313,8 @@
             </td>
             <td><a href="https://scanpy.scverse.org/en/stable/">Scanpy</a> + <code>qc_for_solo.py</code></td>
             <td>
-              미토콘드리아 비율, detected gene 수, total UMI count 기준으로 low-quality cell을 제거합니다.
-              기본값은 <code>pct_counts_mt &lt; 20</code>, <code>min_genes=200</code>, <code>min_counts=500</code>, <code>min_cells_gene=5</code>입니다.
+              Removes low-quality cells by mitochondrial fraction, detected genes and total UMI count.
+              Defaults: <code>pct_counts_mt &lt; 20</code>, <code>min_genes=200</code>, <code>min_counts=500</code>, <code>min_cells_gene=5</code>.
             </td>
           </tr>
           <tr>
@@ -323,7 +323,7 @@
             <td><code>{sample}_qc_full.h5ad</code></td>
             <td><code>{sample}_qc_hvg2000.h5ad</code></td>
             <td><a href="https://scanpy.scverse.org/en/stable/">Scanpy</a></td>
-            <td>SOLO doublet detection에 사용할 highly variable genes를 기본 2,000개 선택합니다.</td>
+            <td>Selects highly variable genes for SOLO doublet detection (2,000 by default).</td>
           </tr>
           <tr>
             <td class="step-id">Step5</td>
@@ -337,7 +337,7 @@
               SOLO score arrays and optional plots
             </td>
             <td><a href="https://docs.scvi-tools.org/en/stable/user_guide/models/solo.html">SOLO / scvi-tools</a></td>
-            <td>각 barcode에 singlet/doublet label과 doublet score를 부여합니다.</td>
+            <td>Assigns a singlet/doublet label and a doublet score to each barcode.</td>
           </tr>
           <tr>
             <td class="step-id">Step6</td>
@@ -349,8 +349,8 @@
             <td><code>{sample}_qc_solo_annotated_full.h5ad</code></td>
             <td><code>filter_solo_singlets.py</code> + AnnData</td>
             <td>
-              QC를 통과한 모든 cell을 유지한 full-gene H5AD에
-              <code>solo_is_doublet</code>, <code>solo_softmax_scores</code>, <code>solo_logit_scores</code>를 추가합니다.
+              Adds
+              <code>solo_is_doublet</code>, <code>solo_softmax_scores</code> and <code>solo_logit_scores</code> to the full-gene H5AD that keeps every QC-passed cell.
             </td>
           </tr>
           <tr>
@@ -363,7 +363,7 @@
               <code>{sample}.solo_summary.csv</code>
             </td>
             <td><code>filter_solo_singlets.py</code> + AnnData</td>
-            <td>SOLO에서 doublet으로 분류된 barcode를 제거하고 singlet-only full-gene H5AD를 생성합니다.</td>
+            <td>Removes barcodes classified as doublets by SOLO and writes a singlet-only full-gene H5AD.</td>
           </tr>
           <tr>
             <td class="step-id">Step8</td>
@@ -374,7 +374,7 @@
             </td>
             <td><code>scrnaseq_qc_summary.csv</code></td>
             <td><code>merge_qc.py</code></td>
-            <td>샘플별 QC 지표와 SOLO doublet summary를 하나의 통합 table로 병합합니다.</td>
+            <td>Merges the per-sample QC metrics and SOLO doublet summaries into one table.</td>
           </tr>
         </tbody>
       </table>
@@ -384,15 +384,15 @@
     <div class="outputs">
       <dl>
         <dt>03_scanpy_qc/*_qc_full.h5ad</dt>
-        <dd>미토콘드리아/유전자 수/UMI count QC를 통과한 full-gene matrix입니다. SOLO label은 아직 포함되지 않습니다.</dd>
+        <dd>Full-gene matrix that passed mitochondrial / gene count / UMI count QC. No SOLO labels yet.</dd>
         <dt>03_scanpy_qc/*_qc_hvg2000.h5ad</dt>
-        <dd>SOLO doublet detection용 HVG subset입니다. 최종 분석용 full matrix는 아닙니다.</dd>
+        <dd>HVG subset for SOLO doublet detection. Not the full matrix for final analysis.</dd>
         <dt>05_singlets/*_qc_solo_annotated_full.h5ad</dt>
-        <dd>QC-passed 모든 cell을 유지하면서 SOLO doublet label과 score를 <code>obs</code>에 추가한 full-gene H5AD입니다.</dd>
+        <dd>Full-gene H5AD keeping every QC-passed cell, with SOLO doublet labels and scores added to <code>obs</code>.</dd>
         <dt>05_singlets/*_qc_solo_singlets_full.h5ad</dt>
-        <dd>SOLO doublet cell을 제거한 최종 downstream analysis용 singlet-only full-gene H5AD입니다.</dd>
+        <dd>Singlet-only full-gene H5AD with SOLO doublets removed; the final matrix for downstream analysis.</dd>
         <dt>scrnaseq_qc_summary.csv</dt>
-        <dd>모든 샘플의 cell count, mitochondrial QC, SOLO doublet count, singlet count 등을 통합한 summary table입니다.</dd>
+        <dd>Summary table for all samples: cell counts, mitochondrial QC, SOLO doublet counts, singlet counts, etc.</dd>
       </dl>
     </div>
 
@@ -400,15 +400,15 @@
     <div class="callout">
       <strong>Excel workbook</strong>
       <p>
-        각 step의 input/output 예시, samplesheet 예시, H5AD <code>obs</code> 예시, QC summary 예시는
+        Example inputs/outputs for each step, a samplesheet, H5AD <code>obs</code> and a QC summary are also provided in
         <a href="scrnaseq_qc_pipeline_step_io_examples.xlsx">scrnaseq_qc_pipeline_step_io_examples.xlsx</a>
-        파일로도 제공합니다.
+        .
       </p>
     </div>
 
     <p class="example-note">
-      아래 표는 실제 데이터값이 아니라 파일 구조와 컬럼 의미를 설명하기 위한 예시입니다.
-      실제 cell 수, UMI count, doublet score는 샘플마다 달라집니다.
+      The tables below are illustrations of the file structure and column meanings, not real data.
+      Actual cell counts, UMI counts and doublet scores differ between samples.
     </p>
 
     <h3>Samplesheet Example</h3>

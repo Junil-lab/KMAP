@@ -7,6 +7,7 @@
 #
 # Common options:
 #   --outdir DIR
+#   --keep_work true|false  (default false: clean non-Cell-Ranger work after success)
 #   --threads N
 #   --use_gpu true|false
 #   --cuda_device 0
@@ -76,10 +77,12 @@ SAMPLESHEET=""
 OUTDIR="${PIPELINE_DIR}/results"
 PROFILE="local"
 PROFILE_SET=false
+KEEP_WORK=false
 EXTRA_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --keep_work) KEEP_WORK="$2"; shift 2 ;;
         --samplesheet) SAMPLESHEET="$2"; shift 2 ;;
         --outdir) OUTDIR="$2"; EXTRA_ARGS+=("--outdir" "$2"); shift 2 ;;
         --threads) EXTRA_ARGS+=("--threads" "$2"); shift 2 ;;
@@ -117,6 +120,7 @@ Required:
 
 Common:
   --outdir DIR
+  --keep_work true|false  (default false: clean non-Cell-Ranger work after success)
   --threads N
   --use_gpu true|false
   --cuda_device 0
@@ -130,6 +134,14 @@ Common:
   -profile local|local_conda|slurm
 EOF
     exit 1
+fi
+
+if [[ "${KEEP_WORK}" != "true" && "${KEEP_WORK}" != "false" ]]; then
+    echo "[ERROR] --keep_work must be true or false" >&2
+    exit 2
+fi
+if [[ "${KEEP_WORK}" = "false" ]]; then
+    python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' || { echo "[ERROR] Python 3.9+ required for work cleanup" >&2; exit 2; }
 fi
 
 mkdir -p "${PIPELINE_DIR}/containers"
@@ -180,9 +192,17 @@ echo "============================================================"
     --samplesheet "${SAMPLESHEET}" \
     -profile "${PROFILE}" \
     "${EXTRA_ARGS[@]}" \
+    -with-trace "${LOG_FILE%.log}.trace.csv" \
     2>&1 | tee "${LOG_FILE}"
 
 echo "============================================================"
+if [[ "${KEEP_WORK}" = "false" ]]; then
+    python3 "${PIPELINE_DIR}/scripts/cleanup_work.py" \
+        --trace "${LOG_FILE%.log}.trace.csv" \
+        --outdir "${OUTDIR}" --apply \
+        2>&1 | tee "${LOG_FILE%.log}.cleanup.log"
+fi
+
 echo "Done: $(date)"
 echo "Log: ${LOG_FILE}"
 echo "Memory log: ${MEM_LOG}"
