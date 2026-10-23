@@ -1,198 +1,193 @@
-# K_map scRNA-seq preprocessing/QC pipeline
+# SCRNA — K-MAP 10x scRNA-seq preprocessing / QC pipeline
 
-A Nextflow + Singularity pipeline for 10x Genomics scRNA-seq preprocessing and QC, built on the same structure as the PacBio WGS pipeline in this repository.
+A Nextflow (DSL2) + Singularity pipeline that takes 10x Genomics FASTQs per sample and runs Cell Ranger → CellBender → Scanpy QC → SOLO doublet detection in one go, ending with a QC-passed, singlet-only full-gene H5AD for each sample.
 
-## Workflow
+## How it works
 
-1. `CELLRANGER_COUNT`: FASTQ -> 10x raw/filtered matrix
-2. `CELLBENDER_REMOVE_BACKGROUND`: raw matrix -> background-corrected H5
-3. `SCANPY_QC_FOR_SOLO`: basic QC, mitochondrial filter, HVG subset
-4. `SOLO_DOUBLETS`: SOLO doublet scoring
-5. `FILTER_SOLO_SINGLETS`: adds SOLO labels/scores to the full-gene QC matrix and writes a singlet-only matrix
-6. `QC_MERGE`: merges the per-sample QC summaries
+```
+10x FASTQ (one folder per sample)
+  │
+  ├─ 01 CELLRANGER_COUNT              FASTQ → raw / filtered feature-barcode matrix
+  ├─ 02 CELLBENDER_REMOVE_BACKGROUND  ambient RNA / background removal (GPU)
+  ├─ 03 SCANPY_QC_FOR_SOLO            cell / gene QC, HVG subset for SOLO
+  ├─ 04 SOLO_DOUBLETS                 doublet scoring (GPU)
+  ├─ 05 FILTER_SOLO_SINGLETS          SOLO labels added to the full matrix, singlet-only matrix
+  └─ 06 QC_MERGE                      QC summary for all samples
+```
 
-## Default QC
+You can also start later: from an existing raw matrix (`start_step=cellbender`) or an existing CellBender output (`start_step=qc`).
 
-- remove cells with `pct_counts_mt >= 20`
-- remove cells with `n_genes_by_counts < 200`
-- remove cells with `total_counts < 500`
-- gene prefilter: `min_cells = 5`
-- HVG: `2000` genes
-- HVGs are computed with `seurat_v3` first; if that fails, the log-normalized Seurat flavour is used, and dispersion as the last fallback.
+### QC defaults
 
-## SOLO defaults
+| Filter | Default | Option |
+|---|---|---|
+| mitochondrial fraction | remove cells with `pct_counts_mt >= 20` | `--mt_threshold` |
+| detected genes | remove cells with `< 200` genes | `--min_genes` |
+| total UMI | remove cells with `< 500` counts | `--min_counts` |
+| gene prefilter | keep genes seen in `>= 5` cells | `--min_cells_gene` |
+| HVGs for SOLO | `2000` (`seurat_v3`, falls back to log-normalized Seurat, then dispersion) | `--hvg_n_top` |
+| CellBender | FPR `0.01`, `150` epochs | `--cellbender_fpr`, `--cellbender_epochs` |
 
-`configs/solo_params.json`:
+SOLO model settings are in `configs/solo_params.json` (`n_hidden` 384, `n_latent` 64, `n_layers` 1, `cl_hidden` 128, `cl_layers` 1, `dropout_rate` 0.2, `learning_rate` 0.001, `valid_pct` 0.1, `batch_size` 128), following the [Calico SOLO](https://github.com/calico/solo) README.
 
-- `n_hidden`: 384
-- `n_latent`: 64
-- `n_layers`: 1
-- `cl_hidden`: 128
-- `cl_layers`: 1
-- `dropout_rate`: 0.2
-- `learning_rate`: 0.001
-- `valid_pct`: 0.1
-- `batch_size`: 128
+## Requirements
 
-The SOLO CLI and example parameters follow the Calico SOLO README: https://github.com/calico/solo
+| Item | Location | Notes |
+|---|---|---|
+| Java 17+ | system | needed by Nextflow; `run.sh` also looks in `/usr/lib/jvm`, `/opt`, `/usr/local` |
+| Nextflow | `./nextflow`, `../nextflow` or `PATH` | the WGS folder's `nextflow` wrapper also works |
+| Singularity / Apptainer | system | |
+| GPU (recommended) | – | CellBender and SOLO; without one use `--use_gpu false` (much slower) |
+| `containers/cellranger.sif` | build from the 10x tarball (see [Containers](#containers)) | Cell Ranger needs a license agreement, so it cannot be redistributed |
+| `containers/cellbender.sif` | Google Artifact Registry | `us.gcr.io/broad-dsde-methods/cellbender:latest` |
+| `containers/scrnaseq_qc.sif` | `def/scrnaseq_qc.def` | Scanpy + SOLO. Without it, `-profile local_conda` runs these steps from a conda environment |
+| 10x transcriptome reference | 10x Genomics (see [Reference](#reference)) | not downloaded by the pipeline |
 
-## Setup
+> `def/scrnaseq_qc.def` currently copies an existing conda environment from the build host. On another server, build that environment first (Scanpy, scvi-tools, `solo-sc`) and point the def file to it, or use `-profile local_conda --qc_conda_env /path/to/env`.
+
+### Containers
+
+Cell Ranger: download the tarball from the [10x Genomics download page](https://www.10xgenomics.com/support/software/cell-ranger/latest) (v10.0 at the time of writing) and package it:
 
 ```bash
-cd KMAP_Pipeline/SCRNA/scRNAseq_QC_pipeline
+CELLRANGER_TARBALL=/path/to/cellranger-10.0.0.tar.gz bash def/build_containers.sh cellranger
+# or from an extracted directory
+CELLRANGER_DIR=/path/to/cellranger-10.0.0 bash def/build_containers.sh cellranger
 ```
 
-### Cell Ranger SIF
-
-By default Cell Ranger runs from its own Singularity image, not from a host installation:
-
-```text
-containers/cellranger.sif
-```
-
-10x Genomics Cell Ranger requires accepting a license, so a fully automatic download may be blocked depending on the server or account. Download the latest Cell Ranger tarball from the official page and package it as a SIF:
-
-```text
-https://www.10xgenomics.com/support/software/cell-ranger/latest
-```
-
-The latest Cell Ranger in the 10x documentation is v10.0. From the tarball:
+The others:
 
 ```bash
-CELLRANGER_TARBALL=/path/to/cellranger-10.0.0.tar.gz \
-  bash def/build_containers.sh cellranger
-```
-
-From an already extracted Cell Ranger directory:
-
-```bash
-CELLRANGER_DIR=/path/to/cellranger-10.0.0 \
-  bash def/build_containers.sh cellranger
-```
-
-Build the other containers:
-
-```bash
-bash def/build_containers.sh qc
 bash def/build_containers.sh cellbender
-bash setup.sh
-```
-
-If `downloads/cellranger-10.0.0.tar.gz` is already in place, everything can be built at once:
-
-```bash
+bash def/build_containers.sh qc
+# or all three at once, with downloads/cellranger-10.0.0.tar.gz in place
 bash def/build_containers.sh all
 ```
 
-Use the fallback profile only if you must use a host Cell Ranger installation:
+To use a Cell Ranger installed on the host instead of the SIF: `-profile local,host_cellranger --cellranger_bin /path/to/cellranger`.
+
+### Reference
+
+Download and extract a 10x reference, then give its path in the samplesheet `transcriptome` column or with `--transcriptome`:
 
 ```bash
-bash run.sh \
-  --samplesheet input/samples.example.csv \
-  -profile local,host_cellranger \
-  --cellranger_bin /path/to/cellranger
+mkdir -p reference && cd reference
+wget -c https://cf.10xgenomics.com/supp/cell-exp/refdata-gex-GRCh38-2024-A.tar.gz    # human GRCh38
+wget -c https://cf.10xgenomics.com/supp/cell-exp/refdata-gex-GRCm39-2024-A.tar.gz    # mouse GRCm39
+tar -xzf refdata-gex-GRCh38-2024-A.tar.gz
 ```
 
-### Transcriptome reference
+## Running
 
-The pipeline does not download references. Download and extract a 10x reference first, then give its path in the samplesheet `transcriptome` column or with `--transcriptome`.
-
-Common 10x Cell Ranger reference tarballs:
-
-```text
-mouse GRCm39:
-  https://cf.10xgenomics.com/supp/cell-exp/refdata-gex-GRCm39-2024-A.tar.gz
-
-human GRCh38:
-  https://cf.10xgenomics.com/supp/cell-exp/refdata-gex-GRCh38-2024-A.tar.gz
-```
-
-Example:
+### 1. Check the environment (once)
 
 ```bash
-mkdir -p reference
-cd reference
-wget -c https://cf.10xgenomics.com/supp/cell-exp/refdata-gex-GRCm39-2024-A.tar.gz
-tar -xzf refdata-gex-GRCm39-2024-A.tar.gz
+git clone https://github.com/hi6167579-droid/KMAP_Pipeline.git
+cd KMAP_Pipeline/SCRNA/scRNAseq_QC_pipeline
+
+# containers (see Containers above), then
+bash setup.sh          # checks Java / nextflow / Singularity / SIFs; "All checks passed." means ready
 ```
 
-If a SOLO conda environment already exists on the server, the pipeline can run before `scrnaseq_qc.sif` is built:
+### 2. Write a samplesheet
+
+Copy `input/samples.example.csv` and fill it in. Only the columns for your `start_step` are needed; leave the rest empty.
+
+```csv
+sample_id,fastqs,sample,transcriptome,start_step,raw_h5,cellbender_h5,expected_cells,chemistry,create_bam,include_introns,localmem_gb,cuda_device,cellbender_expected_cells,cellbender_total_droplets_included,expected_doublet_rate,expected_doublets
+SampleA,/abs/path/fastq/SampleA,SampleA,/abs/path/refdata-gex-GRCh38-2024-A,cellranger,,,,auto,true,false,200,0,,,,
+SampleB,,,,qc,,/abs/path/SampleB/cellbender_cleaned_filtered.h5,,,,,,0,,,,
+```
+
+| Column | Value |
+|---|---|
+| `sample_id` | name of the output folder and barcode prefix |
+| `fastqs` | Cell Ranger FASTQ directory (`start_step=cellranger`) |
+| `sample` | Cell Ranger `--sample` (FASTQ file prefix) |
+| `transcriptome` | extracted Cell Ranger reference directory |
+| `start_step` | `cellranger` — from FASTQ<br>`cellbender` — from a raw matrix (`raw_h5`)<br>`qc` — from a CellBender output (`cellbender_h5`) |
+| `raw_h5` | `raw_feature_bc_matrix.h5`, when `start_step=cellbender` |
+| `cellbender_h5` | CellBender cleaned H5, when `start_step=qc` |
+| `expected_cells`, `chemistry`, `create_bam`, `include_introns`, `localmem_gb` | Cell Ranger settings (empty = Cell Ranger default) |
+| `cuda_device` | GPU index for this sample |
+| `cellbender_expected_cells`, `cellbender_total_droplets_included` | CellBender settings (empty = automatic) |
+| `expected_doublet_rate` | only if known, e.g. `0.06`; otherwise SOLO's own score threshold is used |
+| `expected_doublets` | an explicit number of doublets instead of a rate |
+
+### 3. Run
 
 ```bash
-bash run.sh \
-  --samplesheet input/samples.example.csv \
-  -profile local_conda \
-  --qc_conda_env /path/to/solo_conda_env
+bash run.sh --samplesheet input/my_samples.csv --outdir /path/to/results --threads 24 --use_gpu true --cuda_device 0
+
+# common options
+#   -resume                  continue from where it stopped (reuses the cache)
+#   --use_gpu false          CellBender / SOLO on CPU
+#   --keep_work true         keep all intermediate files (see Disk use and clean-up)
+#   --memory_gb 200          memory for Cell Ranger / GPU steps
+#   --mt_threshold, --min_genes, --min_counts, --hvg_n_top, --solo_expected_doublet_rate
+#   -profile local_conda --qc_conda_env /path/to/env   Scanpy / SOLO from conda instead of scrnaseq_qc.sif
+#   -profile slurm           submit to SLURM (queue: gpu)
+#   export NXF_WORK=/fast/local/disk/work   # intermediate files (default: ~/nf_work/K_map_scrnaseq_qc)
 ```
 
-## Samplesheet
+On a shared server, limit the cores: `taskset -c 0-4 bash run.sh ... --threads 5`
 
-Example file:
+### Disk use and clean-up
 
-```bash
-input/samples.example.csv
-```
+Nextflow keeps every intermediate file in the work directory, and outputs are **copied** from there to `--outdir`. To avoid keeping everything twice, `run.sh` cleans up after a **successful** run:
 
-Columns:
+| | |
+|---|---|
+| Kept | the whole Cell Ranger work directory (including `outs`), inputs, references, all of `--outdir` |
+| Removed | CellBender checkpoints / posterior / temporary files, and the work directories of the QC, SOLO, singlet and summary steps |
+| Safety | only successful tasks in the current run's trace are touched, and every output is first compared with its published copy (SHA-256); any mismatch stops the clean-up before anything is deleted |
+| Failed run | nothing is cleaned, so you can debug and `-resume` |
 
-- `sample_id`: sample name, used for the output directory and the barcode prefix
-- `fastqs`: Cell Ranger input FASTQ directory
-- `sample`: Cell Ranger `--sample`
-- `transcriptome`: extracted Cell Ranger reference directory
-- `start_step`: `cellranger`, `cellbender` or `qc`
-- `raw_h5`: raw feature matrix H5, when `start_step=cellbender`
-- `cellbender_h5`: CellBender cleaned H5, when `start_step=qc`
-- `expected_doublet_rate`: only if known, e.g. `0.06`
-- `expected_doublets`: an explicit number of doublets instead of a rate
-
-## Run
-
-From FASTQ:
-
-```bash
-bash run.sh \
-  --samplesheet input/samples.example.csv \
-  --outdir results \
-  --threads 24 \
-  --use_gpu true \
-  --cuda_device 0
-```
-
-To run only QC/SOLO on existing CellBender output, set `start_step=qc` and `cellbender_h5=/path/to/cellbender_cleaned.h5` in the samplesheet.
+- Cleaned steps are recomputed on a later `-resume`; Cell Ranger is not, because its work is kept.
+- Earlier runs and other work directories are never touched. Running `nextflow run main.nf` directly skips the clean-up.
+- Needs Python 3.9+ on the host (standard library only). `--keep_work true` turns it off.
+- Records: `pipeline_info/run_*.trace.csv` (tasks of the run) and `pipeline_info/run_*.cleanup.log` (what was removed).
 
 ## Outputs
 
-Main outputs per sample:
-
-- `01_cellranger/`: Cell Ranger output
-- `02_cellbender/`: CellBender cleaned H5
-- `03_scanpy_qc/`: `*_qc_full.h5ad`, `*_qc_hvg2000.h5ad`, `*.qc_metrics.csv`
-- `04_solo/`: `soloed.h5ad`, SOLO score arrays/plots
-- `05_singlets/`: `*_qc_solo_annotated_full.h5ad`, `*_qc_solo_singlets_full.h5ad`, doublet barcode CSV
-- `scrnaseq_qc_summary.csv`: QC summary for all samples
-
-`*_qc_solo_annotated_full.h5ad` keeps every cell that passed QC and adds the `solo_is_doublet`, `solo_softmax_scores` and `solo_logit_scores` columns to `obs`. `*_qc_solo_singlets_full.h5ad` keeps only the cells with `solo_is_doublet == False`; this is the final matrix for downstream analysis.
-
-## Work directory retention
-
-By default, `bash run.sh` cleans up the **work directories of every step except Cell Ranger** after the whole run succeeds.
-During the run, the intermediate files needed by later steps are created and kept. Only after Nextflow exits successfully and
-the copies to `results` are finished does the clean-up start, and it only touches successful tasks recorded in the trace of the current run.
-Every output is first checked against its published copy (SHA-256) before anything is deleted.
-
-- Kept: the whole Cell Ranger work directory (including `outs`), the original inputs, references, and all of `results`.
-- Removed: CellBender checkpoints/posterior/temporary files, and the whole work directory of the QC/SOLO/singlet/summary steps.
-- Failed runs: nothing is cleaned, so the work directory stays available for debugging and `-resume`.
-- Copy check fails: the clean-up stops before deleting anything. Results are kept; see the clean-up log for the error.
-- Cleaned steps may be recomputed on a later `-resume`. Cell Ranger work is kept.
-- Earlier finished runs and other work directories are never cleaned automatically.
-- Running `nextflow run main.nf` directly skips this post-processing. Use `run.sh` for automatic clean-up.
-- Needs Python 3.9+ on the host (standard library only).
-
-To keep all work directories:
-
-```bash
-bash run.sh --samplesheet input/samples.example.csv --keep_work true
+```
+<outdir>/<sample_id>/
+├── 01_cellranger/
+├── 02_cellbender/
+├── 03_scanpy_qc/
+├── 04_solo/
+└── 05_singlets/
+<outdir>/scrnaseq_qc_summary.csv   QC table for all samples
+<outdir>/pipeline_info/            timeline / report / trace, run and clean-up logs
 ```
 
-The per-run trace is written to `results/pipeline_info/run_*.trace.csv` and the clean-up record to `run_*.cleanup.log`.
+### What each folder contains
+
+| Folder | File | Values |
+|---|---|---|
+| `01_cellranger` | `<id>/outs/raw_feature_bc_matrix.h5` | all barcodes, unfiltered (input to CellBender) |
+| | `<id>/outs/filtered_feature_bc_matrix.h5` | Cell Ranger's called cells |
+| | `<id>/outs/metrics_summary.csv`, `web_summary.html` | sequencing / mapping / cell-calling metrics |
+| | `<id>/outs/possorted_genome_bam.bam` (+ `.bai`) | aligned reads (only with `create_bam=true`) |
+| `02_cellbender` | `*.cellbender_cleaned.h5` | background-corrected counts |
+| | `*.cellbender_cleaned*.csv`, `*.pdf` | called cell barcodes, metrics, training / cell-probability plots |
+| `03_scanpy_qc` | `*_qc_full.h5ad` | all genes, cells that passed QC; no SOLO labels yet |
+| | `*_qc_hvg2000.h5ad` | HVG subset used to train SOLO (not for final analysis) |
+| | `*.qc_metrics.csv` | cells / genes before and after QC, cells removed per filter, median counts / genes / % MT before and after |
+| `04_solo` | `*.solo/` | SOLO model output: `soloed.h5ad`, doublet scores, plots |
+| `05_singlets` | `*_qc_solo_annotated_full.h5ad` | every QC-passed cell, with `solo_is_doublet`, `solo_softmax_scores`, `solo_logit_scores` in `obs` |
+| | `*_qc_solo_singlets_full.h5ad` | only `solo_is_doublet == False` cells — **the matrix for downstream analysis** |
+| | `*.solo_summary.csv` | cells after QC, doublets, singlets, doublet % |
+| | `*.solo_doublet_barcodes.csv` | barcodes called doublets, with scores |
+| `scrnaseq_qc_summary.csv` | | one row per sample: the QC metrics and SOLO summary combined |
+| `pipeline_info/` | | run time and memory per step (`trace.csv`, `timeline.html`, `report.html`) |
+
+The annotated file lets you compare results before and after doublet removal, or keep the doublet calls only as metadata.
+
+More detail with example tables: [docs/scrnaseq_qc_pipeline_io_tools.html](docs/scrnaseq_qc_pipeline_io_tools.html) and [docs/scrnaseq_qc_pipeline_step_io_examples.xlsx](docs/scrnaseq_qc_pipeline_step_io_examples.xlsx).
+
+## Notes
+
+- **Doublet rate**: if `expected_doublet_rate` is empty, SOLO decides with its own score threshold. For 10x data, setting the rate per sample (from the loaded cell number) is better when known.
+- **GPU**: CellBender and SOLO use `--nv`; pick the card per sample with `cuda_device` or for the whole run with `--cuda_device`.
+- **Cell Ranger license**: the Cell Ranger SIF is built locally from your own download and is not distributed with this repository.
