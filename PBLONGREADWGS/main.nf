@@ -290,97 +290,45 @@ process CPG_TOOLS {
 process QC_COLLECT {
     tag "${meta.id}"
     container params.main_sif
+    errorStrategy 'terminate'
     publishDir "${params.outdir}/qc_summary", mode: 'copy'
 
     input:
-    tuple val(meta), path(flagstat), path(sv_stats), path(hiphase_summary)
+    tuple val(meta), path(bam), path(bai), path(sv_vcf), path(sv_tbi), path(hiphase_summary), path(cpg_bed)
+    path qc_script
 
     output:
     path "${meta.id}.qc.csv", emit: qc_csv
 
     script:
     """
-    python3 << 'PYEOF'
-import csv, json, os
-sample = "${meta.id}"
-qc = {"sample_id": sample, "status": "success", "error": ""}
-
-try:
-    lines = open("${flagstat}").readlines()
-    total  = int(next(l.split()[0] for l in lines if "in total" in l))
-    mapped = int(next(l.split()[0] for l in lines if "mapped (" in l))
-    qc["mapping_rate"] = f"{mapped/total*100:.2f}%"
-    qc["total_reads"]  = total
-    qc["mapped_reads"] = mapped
-except Exception as e:
-    qc["mapping_rate"] = qc["total_reads"] = qc["mapped_reads"] = "NA"
-    qc["error"] += f"flagstat:{e};"
-
-try:
-    d = json.load(open("${sv_stats}"))
-    qc["total_sv"] = d["score_stats"]["vcf_output_record_count"]
-except Exception as e:
-    qc["total_sv"] = "NA"; qc["error"] += f"sv_stats:{e};"
-
-try:
-    phased, total_v, blocks, ng50 = 0, 0, 0, 0
-    with open("${hiphase_summary}") as f:
-        reader = csv.DictReader(f, delimiter='\t')
-        for row in reader:
-            phased  += int(row.get("num_phased", 0))
-            total_v += int(row.get("num_variants", 0))
-            blocks  += int(row.get("num_blocks", 0))
-            ng50     = max(ng50, int(row.get("block_ng50", 0)))
-    qc["phased_variants"] = phased
-    qc["total_variants"]  = total_v
-    qc["phase_blocks"]    = blocks
-    qc["block_n50"]       = ng50
-except Exception as e:
-    qc["phased_variants"] = qc["total_variants"] = qc["phase_blocks"] = qc["block_n50"] = "NA"
-    qc["error"] += f"hiphase:{e};"
-
-fields = ["sample_id","status","error",
-          "mapping_rate","total_reads","mapped_reads",
-          "total_sv","phased_variants","total_variants","phase_blocks","block_n50"]
-with open("${meta.id}.qc.csv","w",newline="") as f:
-    w = csv.DictWriter(f, fieldnames=fields)
-    w.writeheader()
-    w.writerow({k: qc.get(k,"NA") for k in fields})
-PYEOF
+    set -euo pipefail
+    samtools flagstat "${bam}" > alignment.flagstat.txt
+    bcftools view -H "${sv_vcf}" | wc -l > sv_count.txt
+    python3 "${qc_script}" collect --sample "${meta.id}" \
+        --flagstat alignment.flagstat.txt --sv-count sv_count.txt \
+        --summary "${hiphase_summary}" --output "${meta.id}.qc.csv"
     """
 }
 
 process QC_MERGE {
     container params.main_sif
+    errorStrategy 'terminate'
     publishDir params.outdir, mode: 'copy'
 
     input:
     path csv_files
+    val expected_samples
+    path qc_script
 
     output:
     path "qc_summary.csv"
 
     script:
+    def expectedArgs = expected_samples.collect { "'${it}'" }.join(' ')
     """
-    python3 << 'PYEOF'
-import csv, glob
-files = sorted(glob.glob("*.qc.csv"))
-if not files:
-    open("qc_summary.csv","w").write("no data\\n")
-else:
-    rows, header = [], None
-    for f in files:
-        with open(f) as fh:
-            reader = csv.DictReader(fh)
-            if header is None:
-                header = reader.fieldnames
-            rows.extend(reader)
-    with open("qc_summary.csv","w",newline="") as out:
-        w = csv.DictWriter(out, fieldnames=header)
-        w.writeheader()
-        w.writerows(rows)
-    print(f"QC summary: {len(rows)} samples")
-PYEOF
+    python3 "${qc_script}" merge --files ${csv_files} \
+        --expected-samples ${expectedArgs} --output qc_summary.csv
     """
 }
 
@@ -424,10 +372,24 @@ workflow {
             if (!(sex in ['XX', 'XY'])) {
                 error "samplesheet: sex of ${row.sample_id} is '${row.sex}' — must be XX or XY"
             }
+            if (!(row.sample_id ==~ /[A-Za-z0-9][A-Za-z0-9_.-]*/)) {
+                error "Invalid sample_id: ${row.sample_id}"
+            }
             def meta       = [id: row.sample_id, sex: sex]
             def bam        = file(row.bam)
             def start_step = row.start_step ?: 'pbmm2'
+            if (!(start_step in ['jasmine', 'pbmm2', 'deepvariant', 'hiphase'])) {
+                error "Invalid start_step for ${meta.id}: ${start_step}"
+            }
             tuple(meta, bam, start_step)
+        }
+        .toList()
+        .flatMap { entries ->
+            def ids = entries.collect { it[0].id }
+            if (!ids || ids.unique(false).size() != ids.size()) {
+                error "Samplesheet must contain nonempty, unique sample IDs"
+            }
+            entries
         }
 
     ch_input.branch {
@@ -513,20 +475,23 @@ workflow {
             tuple(meta, bam, bai, sv_vcf, sv_tbi, tr_vcf, tr_tbi, snv_vcf, snv_tbi)
         }
 
-    hiphase_out = HIPHASE(ch_for_hiphase.mix(ch_hiphase_extra))
+    ch_all_hiphase = ch_for_hiphase.mix(ch_hiphase_extra)
+    hiphase_out = HIPHASE(ch_all_hiphase)
 
     // STEP 07: CPG_TOOLS — haplotagged BAM → CpG methylation
     cpg_out = CPG_TOOLS(hiphase_out.haplotagged_bam)
 
-    // QC
-    ch_qc_input = pbmm2_out.flagstat
-        .join(sawfish_out.stats,      by: 0)
-        .join(hiphase_out.summary,    by: 0)
-        .map { meta, flagstat, sv_stats, hiphase_sum ->
-            tuple(meta, flagstat, sv_stats, hiphase_sum)
+    // Recompute alignment statistics for every entry route. Wait for CpG too.
+    ch_qc_script = Channel.value(file("${projectDir}/scripts/qc_summary.py", checkIfExists: true))
+    ch_expected_samples = ch_input.map { meta, bam, step -> meta.id }.toList()
+    ch_qc_input = ch_all_hiphase
+        .map { meta, bam, bai, sv_vcf, sv_tbi, tr_vcf, tr_tbi, snv_vcf, snv_tbi ->
+            tuple(meta, bam, bai, sv_vcf, sv_tbi)
         }
-    qc_per_sample = QC_COLLECT(ch_qc_input)
-    qc_merge_out  = QC_MERGE(qc_per_sample.qc_csv.collect())
+        .join(hiphase_out.summary, by: 0)
+        .join(cpg_out.cpg_bed, by: 0)
+    qc_per_sample = QC_COLLECT(ch_qc_input, ch_qc_script)
+    qc_merge_out = QC_MERGE(qc_per_sample.qc_csv.toList(), ch_expected_samples, ch_qc_script)
 
     // MEMORY_MONITOR: runs after QC_MERGE (= end of the whole pipeline)
     ch_meta      = ch_input.map { meta, bam, step -> meta }

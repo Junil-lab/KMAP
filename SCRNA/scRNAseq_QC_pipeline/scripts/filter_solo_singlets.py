@@ -30,17 +30,23 @@ def main():
     if missing:
         raise RuntimeError(f"SOLO H5AD is missing required obs columns: {missing}")
 
-    shared = full.obs_names.intersection(solo.obs_names)
-    if len(shared) == 0:
-        raise RuntimeError("No overlapping barcodes between full QC H5AD and SOLO H5AD.")
-
-    if len(shared) != full.n_obs:
-        full = full[shared].copy()
-    else:
-        full = full.copy()
-
+    if not full.obs_names.is_unique or not solo.obs_names.is_unique:
+        raise RuntimeError("Duplicate cell barcodes in QC or SOLO output.")
+    missing = full.obs_names.difference(solo.obs_names)
+    extra = solo.obs_names.difference(full.obs_names)
+    if len(missing) or len(extra):
+        raise RuntimeError(
+            f"QC/SOLO barcode mismatch: {len(missing)} missing, {len(extra)} unexpected. "
+            "No cells were silently removed."
+        )
+    if full.n_obs == 0:
+        raise RuntimeError("QC matrix contains no cells.")
+    full = full.copy()
     solo_obs = solo.obs.loc[full.obs_names]
-    full.obs["solo_is_doublet"] = solo_obs["is_doublet"].astype(bool).to_numpy()
+    labels = solo_obs["is_doublet"]
+    if labels.isna().any() or not labels.isin([True, False, 0, 1]).all():
+        raise RuntimeError("SOLO is_doublet must contain nonmissing boolean or 0/1 values.")
+    full.obs["solo_is_doublet"] = labels.astype(bool).to_numpy()
     for col in ("softmax_scores", "logit_scores"):
         if col in solo_obs.columns:
             full.obs[f"solo_{col}"] = pd.to_numeric(solo_obs[col], errors="coerce").to_numpy()

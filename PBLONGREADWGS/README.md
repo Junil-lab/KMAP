@@ -166,7 +166,7 @@ Memory: the largest step is DeepVariant (~31 GB peak in the test; up to 64 GB is
 | `06d_phased_TR` | `*.tr.phased.vcf.gz` | tandem repeats from 05 with phase |
 | `07_CpG_methylation` | `*.combined.bed.gz` | per-CpG methylation: position, `mod_score` (% methylated, 0–100), `cov` (depth), estimated methylated / unmethylated read counts |
 | | `*.hap1.bed.gz`, `*.hap2.bed.gz` | the same per haplotype (allele-specific methylation) |
-| `qc_summary.csv` | | one row per sample: mapping rate, reads, SV count, phased variants, phase blocks, block N50 |
+| `qc_summary.csv` | | one row per sample: mapping rate, reads, SV count, phased variants, phase blocks, maximum chromosome NG50 |
 | `pipeline_info/` | | run time and memory per step (`trace.csv`, `timeline.html`, `report.html`) |
 
 ## Example
@@ -180,3 +180,24 @@ Memory: the largest step is DeepVariant (~31 GB peak in the test; up to 64 GB is
 - **Check TRGT logs**: TRGT exits 0 even if some loci fail. Check the `[ERROR]` lines in the `05_tandem_repeats` task log.
 - **Removed steps**: variant annotation (VEP, AnnotSV) and sTELLeR (TE detection) were removed in this version.
 - **Reference point**: the tool set mostly matches PacBio's official [HiFi-human-WGS-WDL](https://github.com/PacificBiosciences/HiFi-human-WGS-WDL) v4.0.0; versions here are DeepVariant 1.9.0 / TRGT 5.0.0 / HiPhase 1.6.0 / Sawfish 2.2.1 / pb-CpG-tools 3.0.0.
+
+## QC validation (2026-10-24)
+
+QC is generated for every supported start step, including `deepvariant` and `hiphase`.
+Alignment statistics are recomputed from the BAM supplied to phasing; QC-passed and
+QC-failed alignment records are both included. These are alignment-record counts,
+not deduplicated molecule counts. `total_sv` counts all records in the input SV VCF
+(before HiPhase PASS filtering), including CNVs and non-PASS records.
+
+QC collection waits for CpG output and rejects malformed statistics. QC merging
+requires exactly one successful row for every unique samplesheet ID. Duplicate IDs
+and unsupported start steps are rejected. Invalid QC terminates the run.
+
+`max_chromosome_block_ng50` replaces the misleading `block_n50` column. Its value
+is the maximum of the chromosome-level NG50 values reported by HiPhase, not a
+whole-sample N50 or NG50. Historical example outputs retain their original schema.
+
+Tests: `python3 -m unittest discover -s tests -p 'test_*.py' -v`.
+`python3 tests/run_qc_routing.py --nextflow /path/to/nextflow --out /new/test/directory`
+checks all four entry routes with stubbed biological tools and real QC aggregation.
+This is a routing regression test, not a new end-to-end variant-calling benchmark.

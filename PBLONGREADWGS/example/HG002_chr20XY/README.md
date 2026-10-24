@@ -140,3 +140,10 @@ output/qc_summary/, output/qc_summary.csv, output/pipeline_info/trace.csv
 ```
 
 > **Note on `04_structural_var`**: the SV VCF contains whole-chromosome `<DEL>` CNV records with `CN=0` on every chromosome and contig other than chr20/X/Y (e.g. chr1:1-248956000). These are artefacts of the test input, which only has reads on chr20, chrX and chrY; they do not appear in whole-genome runs. That is also why the totals (`total_sv`, all-chromosome counts) are larger than the chr20/X/Y numbers above.
+
+### QC schema note (2026-10-24)
+
+The committed example outputs predate the QC fix and retain `block_n50`. That
+legacy value is the maximum chromosome-level HiPhase NG50, not a global N50.
+New runs report it as `max_chromosome_block_ng50`. Historical outputs have not
+been rewritten or presented as a new validation run.

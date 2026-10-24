@@ -191,3 +191,18 @@ More detail with example tables: [docs/scrnaseq_qc_pipeline_io_tools.html](docs/
 - **Doublet rate**: if `expected_doublet_rate` is empty, SOLO decides with its own score threshold. For 10x data, setting the rate per sample (from the loaded cell number) is better when known.
 - **GPU**: CellBender and SOLO use `--nv`; pick the card per sample with `cuda_device` or for the whole run with `--cuda_device`.
 - **Cell Ranger license**: the Cell Ranger SIF is built locally from your own download and is not distributed with this repository.
+
+## QC consistency checks (2026-10-24)
+
+Sample IDs must be unique and contain only letters, digits, dots, underscores or
+hyphens, starting with a letter or digit. QC and SOLO must contain exactly the same
+unique cell barcodes (order may differ). Missing/extra barcodes or missing/invalid
+doublet labels stop the run before final H5AD files are written.
+
+The combined summary requires one QC and one SOLO summary for every input sample.
+It rejects missing files, duplicate samples and inconsistent cell counts; doublets
+plus singlets must equal the QC-passed cell count. The successful-run work cleanup
+therefore also remains blocked when these checks fail.
+
+Run the tests inside the QC environment/container with
+`python3 -m unittest discover -s tests -v` (AnnData, NumPy and pandas required).

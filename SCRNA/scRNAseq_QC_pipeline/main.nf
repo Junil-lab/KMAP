@@ -319,18 +319,20 @@ process QC_MERGE {
     path qc_metrics
     path solo_metrics
     path merge_script
+    val expected_samples
 
     output:
     path "scrnaseq_qc_summary.csv"
 
     script:
+    def expectedArgs = expected_samples.collect { "'${it}'" }.join(' ')
     """
     set -euo pipefail
 
     python3 "${merge_script}" \\
         --qc-files ${qc_metrics} \\
         --solo-files ${solo_metrics} \\
-        --output scrnaseq_qc_summary.csv
+        --expected-samples ${expectedArgs} --output scrnaseq_qc_summary.csv
     """
 }
 
@@ -351,6 +353,9 @@ workflow {
                 throw new IllegalArgumentException("samplesheet row is missing 'sample_id'")
             }
 
+            if (!(sampleId ==~ /[A-Za-z0-9][A-Za-z0-9_.-]*/)) {
+                error "Invalid sample_id: ${sampleId}"
+            }
             def startStep = rowValue(row, 'start_step', 'cellranger').toLowerCase()
             if (!(startStep in ['cellranger', 'cellbender', 'qc'])) {
                 throw new IllegalArgumentException("${sampleId}: start_step must be one of cellranger, cellbender, qc")
@@ -378,6 +383,14 @@ workflow {
                   rowValue(row, 'raw_h5', null),
                   rowValue(row, 'cellbender_h5', null),
                   startStep)
+        }
+        .toList()
+        .flatMap { entries ->
+            def ids = entries.collect { it[0].id }
+            if (!ids || ids.unique(false).size() != ids.size()) {
+                error "Samplesheet must contain nonempty, unique sample IDs"
+            }
+            entries
         }
 
     ch_qc_script = Channel.value(file("${projectDir}/scripts/qc_for_solo.py", checkIfExists: true))
@@ -433,7 +446,8 @@ workflow {
         }
     FILTER_SOLO_SINGLETS(ch_filter_in, ch_filter_script)
 
-    ch_qc_metrics = SCANPY_QC_FOR_SOLO.out.qc.map { meta, full_h5ad, hvg_h5ad, metrics -> metrics }.collect()
-    ch_solo_metrics = FILTER_SOLO_SINGLETS.out.singlets.map { meta, annotated_h5ad, singlets_h5ad, summary, doublet_barcodes -> summary }.collect()
-    QC_MERGE(ch_qc_metrics, ch_solo_metrics, ch_merge_script)
+    ch_qc_metrics = SCANPY_QC_FOR_SOLO.out.qc.map { meta, full_h5ad, hvg_h5ad, metrics -> metrics }.toList()
+    ch_solo_metrics = FILTER_SOLO_SINGLETS.out.singlets.map { meta, annotated_h5ad, singlets_h5ad, summary, doublet_barcodes -> summary }.toList()
+    ch_expected_samples = ch_samples.map { meta, fastqs, raw, clean, step -> meta.id }.toList()
+    QC_MERGE(ch_qc_metrics, ch_solo_metrics, ch_merge_script, ch_expected_samples)
 }
