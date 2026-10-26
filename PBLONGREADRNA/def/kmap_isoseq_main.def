@@ -1,0 +1,74 @@
+Bootstrap: docker
+From: continuumio/miniconda3:24.1.2-0
+
+%labels
+    Maintainer  KMAP
+    Version     1.1.0
+    Description "KMAP IsoSeq main container: pbmm2, IsoQuant, samtools"
+
+%post
+    set -e
+
+    # conda 채널 설정 (flexible priority: channel conflict 방지)
+    conda config --add channels conda-forge
+    conda config --add channels bioconda
+    conda config --set channel_priority flexible
+
+    # mamba 설치
+    conda install -y -n base -c conda-forge mamba
+
+    # ── env 1: tools (samtools, pbmm2, minimap2, bcftools) ──────
+    # isoquant 과 htslib/libdeflate 충돌을 피하기 위해 분리
+    mamba create -y -n tools \
+        -c bioconda -c conda-forge \
+        "pbmm2=26.1.99" \
+        "minimap2>=2.26" \
+        "samtools=1.23.1" \
+        "bcftools>=1.17" \
+        pandas \
+        numpy \
+        2>&1
+
+    # ── env 2: isoquant (독립 htslib) ───────────────────────────
+    mamba create -y -n isoquant \
+        -c bioconda -c conda-forge \
+        "isoquant=3.13.1" \
+        "python>=3.10" \
+        pandas \
+        numpy \
+        2>&1
+
+    conda clean -afy
+
+    # wrapper scripts: /usr/local/bin 에 배치
+    # tools env 바이너리들
+    for bin in pbmm2 minimap2 samtools bcftools; do
+        printf '#!/bin/bash\nexec /opt/conda/envs/tools/bin/%s "$@"\n' "${bin}" \
+            > /usr/local/bin/${bin}
+        chmod +x /usr/local/bin/${bin}
+    done
+
+    # isoquant wrapper
+    cat > /usr/local/bin/isoquant << 'WRAP'
+#!/bin/bash
+exec /opt/conda/envs/isoquant/bin/isoquant "$@"
+WRAP
+    chmod +x /usr/local/bin/isoquant
+
+    # python → isoquant env python
+    ln -sf /opt/conda/envs/isoquant/bin/python /usr/local/bin/python3
+    ln -sf /opt/conda/envs/isoquant/bin/python /usr/local/bin/python
+
+%environment
+    export PATH=/usr/local/bin:/opt/conda/bin:$PATH
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+
+%runscript
+    exec "$@"
+
+%test
+    set -e
+    pbmm2 --version
+    isoquant --version
+    samtools --version | head -1

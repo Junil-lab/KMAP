@@ -1,0 +1,41 @@
+Bootstrap: docker
+From: continuumio/miniconda3:24.1.2-0
+
+%labels
+    Maintainer KMAP
+    Version 1.1.0
+    SQANTI3Commit 1cd5f5163a9b81f30a9d9da688767875cf139dab
+
+%files
+    def/install_sqanti3_deps.sh /opt/install_sqanti3_deps.sh
+
+%post
+    set -e
+    export PATH=/opt/conda/bin:$PATH
+    apt-get update -qq
+    apt-get install -y --no-install-recommends git curl build-essential
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+    conda install -y -n base --override-channels -c conda-forge mamba
+    git clone https://github.com/ConesaLab/SQANTI3.git /opt/SQANTI3
+    cd /opt/SQANTI3
+    git checkout --detach 1cd5f5163a9b81f30a9d9da688767875cf139dab
+    bash /opt/install_sqanti3_deps.sh
+
+%environment
+    export PATH=/opt/conda/bin:/opt/SQANTI3:$PATH
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+    export PYTHONPATH=/opt/SQANTI3:${PYTHONPATH:-}
+    export LD_PRELOAD=/opt/conda/lib/libstdc++.so.6
+
+%runscript
+    exec "$@"
+
+%test
+    set -e
+    python /opt/SQANTI3/sqanti3_qc.py --help >/dev/null
+    TD2.LongOrfs --help >/dev/null
+    TD2.Predict --help >/dev/null
+    command -v gffread
+    Rscript -e 'for (p in c("ggplot2","ggplotify","scales","reshape","gridExtra","NOISeq","rmarkdown","htmltools","DT","plyr","plotly","dplyr")) stopifnot(requireNamespace(p, quietly=TRUE))'

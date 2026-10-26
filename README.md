@@ -20,7 +20,7 @@
 | Module | Data | What it does | Status |
 |---|---|---|---|
 | [**PBLONGREADWGS**](PBLONGREADWGS/) | PacBio HiFi WGS (BAM) | alignment → SNV/indel → SV → tandem repeats → joint phasing → CpG methylation, sex-aware on chrX/chrY | ✅ **v1.0.0** — tested on HG002 |
-| [**PBLONGREADRNA**](PBLONGREADRNA/) | PacBio Iso-Seq / Kinnex | full-length isoform discovery and quantification | 🚧 in preparation |
+| [**PBLONGREADRNA**](PBLONGREADRNA/) | PacBio Iso-Seq / Kinnex | pbmm2 → IsoQuant / isocall / FLAIR → SQANTI3 + ORF; sample/cohort modes | available — see module validation report |
 | [**SCRNA**](SCRNA/scRNAseq_QC_pipeline/) | 10x Genomics scRNA-seq (FASTQ) | Cell Ranger → CellBender → QC → SOLO doublet removal | ✅ available |
 
 Every module follows the same pattern: **one samplesheet in, one command to run, all tools inside Singularity containers**, so results do not depend on what is installed on the server.
@@ -98,7 +98,7 @@ KMAP_Pipeline/
 │   ├── def/                container recipes
 │   ├── resources/ref/      sex BEDs + TRGT catalog (GRCh38 FASTA downloaded separately)
 │   └── example/HG002_chr20XY/   test input script, expected outputs
-├── PBLONGREADRNA/          PacBio long-read RNA pipeline (coming)
+├── PBLONGREADRNA/          PacBio long-read RNA pipeline
 └── SCRNA/
     └── scRNAseq_QC_pipeline/   10x scRNA-seq preprocessing and QC
 ```
@@ -107,6 +107,7 @@ KMAP_Pipeline/
 
 - [PBLONGREADWGS/README.md](PBLONGREADWGS/README.md) — requirements, samplesheet, options, every output file explained
 - [PBLONGREADWGS/example/HG002_chr20XY/](PBLONGREADWGS/example/HG002_chr20XY/) — step-by-step test run with expected results
+- [PBLONGREADRNA/README.md](PBLONGREADRNA/README.md) — tool selection, sample/cohort modes, SQANTI3 and ORF outputs
 - [SCRNA/scRNAseq_QC_pipeline/README.md](SCRNA/scRNAseq_QC_pipeline/README.md) — scRNA-seq workflow and QC defaults
 - [Releases](https://github.com/hi6167579-droid/KMAP_Pipeline/releases) — prebuilt containers
 

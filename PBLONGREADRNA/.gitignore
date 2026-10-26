@@ -1,0 +1,32 @@
+# Local runtimes, workflow state, and data
+.java17/
+.java17-install.*/
+.java17.backup.*/
+.nextflow/
+.nextflow.log*
+.nf_work/
+work/
+backups/
+test_runs/
+results/
+__pycache__/
+*.pyc
+containers/*.sif
+containers/.build-*/
+resources/ref/*
+!resources/ref/README.md
+input/*.bam
+input/*.bai
+input/*.pbi
+# Keep the current study samplesheet local; publish a separate example.
+input/samples.csv
+containers/*.log
+
+# NAS-specific study lists and transfer records
+input/sample1.csv
+input/*.bak
+NAS_*.txt
+NAS_*.log
+COPY_VERIFICATION.json
+analysis/
+nextflow
