@@ -98,6 +98,54 @@ SampleB,/absolute/path/SampleB.hifi_reads.bam,XY,pbmm2
 | `sex` | `XX` or `XY` (required) |
 | `start_step` | `jasmine` — BAM with kinetics (ip/pw) but no methylation tags<br>`pbmm2` — HiFi BAM that already has methylation tags (MM/ML) (most cases)<br>`deepvariant` / `hiphase` — restart from the middle |
 
+#### Jasmine or not? Check the BAM tags first
+
+Whether a sample needs `start_step=jasmine` depends on the tags in its BAM:
+
+| Tags in the BAM | Meaning | `start_step` |
+|---|---|---|
+| `MM` + `ML` on every read | 5mC already called (Jasmine or Primrose ran on the instrument / in SMRT Link) | `pbmm2` |
+| kinetics only (`fi`/`ri`/`fp`/`rp`, or `ip`/`pw`) | raw kinetics kept, 5mC not called yet | `jasmine` |
+| neither | no methylation information | `pbmm2` (CpG output will be empty) |
+
+Run from the pipeline folder (samtools is in the main container):
+
+```bash
+SIF=containers/kmap_pbwgs_v2.sif
+BAM=input/bam/sample.hifi_reads.bam
+
+# 1. programs that produced this BAM — jasmine or primrose means 5mC was already called
+singularity exec -B $PWD $SIF samtools view -H $BAM | grep '^@PG' | grep -oE 'ID:[^[:space:]]+' | sort -u
+
+# 2. count the tags on the first 1,000 reads and suggest a start_step
+singularity exec -B $PWD $SIF samtools view $BAM 2>/dev/null | head -n 1000 | awk '
+{ mm = ml = kin = 0
+  for (i = 12; i <= NF; i++) { t = substr($i, 1, 2)
+    if (t == "MM" || t == "Mm") mm = 1
+    if (t == "ML" || t == "Ml") ml = 1
+    if (t ~ /^(fi|ri|fp|rp|ip|pw)$/) kin = 1 }
+  n++; MM += mm; ML += ml; K += kin }
+END { printf "reads: %d | MM: %d  ML: %d  kinetics: %d\n", n, MM, ML, K
+  if (MM == n && ML == n) print "=> start_step=pbmm2   (5mC tags present, Jasmine not needed)"
+  else if (K > 0)         print "=> start_step=jasmine (kinetics present, no 5mC tags)"
+  else                    print "=> no 5mC tags and no kinetics: methylation cannot be called" }'
+
+# 3. what the tags look like (MM: C+m = 5mC positions, ML: probability of each, 0-255)
+singularity exec -B $PWD $SIF samtools view $BAM 2>/dev/null | head -1 | tr '\t' '\n' | grep -E '^(MM|ML)' | cut -c1-60
+```
+
+Output for the HG002 example BAM:
+
+```
+ID:ccs ID:pbmm2 ID:primrose ID:samtools ...
+reads: 1000 | MM: 1000  ML: 1000  kinetics: 0
+=> start_step=pbmm2   (5mC tags present, Jasmine not needed)
+ML:B:C,202,230,117,167,16,144,247,0,0,1,221,2,176,253,255,54
+MM:Z:C+m?,63,30,2,80,34,146,4,45,0,113,69,36,7,73,0,3,25,64,
+```
+
+After a run with `start_step=jasmine`, confirm that Jasmine worked by running the same commands on `<outdir>/<sample_id>/01_methyl_bam/<sample_id>.methyl.bam`: `@PG` should now list `jasmine`, and every read should have `MM`/`ML`. The Jasmine log is `01_methyl_bam/<sample_id>.jasmine.log`.
+
 ### 3. Run
 
 ```bash
