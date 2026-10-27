@@ -1,0 +1,7 @@
+{
+  "version": "6.0.1",
+  "architecture": "amd64",
+  "filename": "sqanti3_v6.0.1.sif",
+  "tag": "anaconesalab/sqanti3:v6.0.1",
+  "uri": "docker://anaconesalab/sqanti3@sha256:e770fb7a136e4c67abb6b50d7a118bd8724d430dee49d4ceb2ef306fae7767f4"
+}

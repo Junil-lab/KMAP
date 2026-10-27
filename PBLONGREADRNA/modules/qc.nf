@@ -28,7 +28,7 @@ process SQANTI3 {
     export HOME="\$PWD/.home"
     export XDG_CACHE_HOME="\$PWD/.cache"
     mkdir -p "\$HOME" "\$XDG_CACHE_HOME"
-    CUDA_VISIBLE_DEVICES="" python ${quote(projectDir.toString() + "/bin/run_sqanti3.py")} ${quote(params.sqanti3_qc)} \
+    CUDA_VISIBLE_DEVICES="" bash ${quote(projectDir.toString() + "/bin/run_sqanti3.sh")} ${quote(params.sqanti3_qc)} \
         --isoforms ${quote(transcript_gtf)} --refGTF ${quote(gencode_gtf)} \
         --refFasta ${quote(genome_fa)} --output ${meta.prefix} --dir . \
         --report html --cpus ${task.cpus} --include_ORF ${opts.join(' ')} \

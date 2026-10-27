@@ -1,3 +1,11 @@
+## Official SQANTI3 and 12-sample isocall validation (2026-10-27)
+
+The official SQANTI3 v6.0.1 image passed dependency, workflow, ORF/protein and
+colon-containing isocall identifier checks. A real 12-sample profile merge and
+single cohort call also completed successfully. See
+[official_sqanti3_validation_20261026.md](official_sqanti3_validation_20261026.md)
+for the exact image digest and results.
+
 ## NAS validation (2026-10-26)
 
 All checks below ran from the NAS copy with NAS-hosted containers and data.

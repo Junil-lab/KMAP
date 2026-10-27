@@ -25,19 +25,25 @@ Linux, Bash, Python 3, Singularity, Java 17+, and these images:
 |---|---|
 | `kmap_isoseq_main.sif` | pbmm2, samtools, IsoQuant, QC scripts' Python |
 | `kmap_isoseq_discovery.sif` | isocall 1.3.0, FLAIR 3.0.0+master at pinned commit, minimap2/samtools |
-| `kmap_isoseq_sqanti3.sif` | SQANTI3 6.0.1, TD2/PSAURON, R reporting |
+| `sqanti3_v6.0.1.sif` | Official SQANTI3 6.0.1 image, pinned OCI digest; TD2/PSAURON and R reporting |
 
 ```bash
 bash setup.sh
 # Installs Java 17 locally if needed, uses pinned Nextflow 26.04.3,
-# and checks references and actual tool/dependency execution.
+# fetches a missing official SQANTI3 SIF, then checks references and tools.
 ```
 
 References default to hg38 FASTA + `.fai`, GENCODE v45 GTF, and optional human polyA/CAGE annotations. See `resources/ref/README.md`. Paths can be overridden using `--genome_fa`, `--gencode_gtf`, `--main_sif`, `--discovery_sif`, `--sqanti3_sif`, or a Nextflow `-c` config. Explicitly configured missing files stop validation. Missing default optional annotations are omitted; disable one with `--cage_peak_bed false`.
 
-For a fresh Git checkout, obtain the three images separately or build them with
-the recipes below before `setup.sh`. The images are not committed to Git; the
-existing WGS release image does not contain this RNA workflow.
+For a fresh Git checkout, prepare reference files and the KMAP main/discovery
+images. `bash setup.sh` automatically downloads and converts the tested official
+SQANTI3 image if missing; no SQANTI3 release upload or manual split-file assembly
+is needed. `bash setup.sh --download-containers --release-tag isoseq-v1.0.0`
+fetches the other two images from the dedicated KMAP RNA release.
+Use `--no-download-sqanti3` to check local files without fetching that image.
+See [container instructions](docs/container_releases.md) for exact sources, asset
+names, offline installation and release packaging. The existing WGS release is
+not an RNA release.
 
 Container building/rebuilding:
 
@@ -46,7 +52,7 @@ bash def/build_containers.sh
 bash def/build_containers.sh discovery --rebuild
 ```
 
-A successful rebuild backs up the prior image. FLAIR's upstream commit and the local patch required for empty/no-SQ SAM streams are recorded in `def/kmap_isoseq_discovery.def` and `def/patches/`. The patch reproduces the existing lab installation's fix. Code/reference paths inside tasks are staged or configurable; no lab server path is required by the distribution source.
+A successful KMAP image rebuild backs up the prior image. SQANTI3 is fetched from upstream; its existing SIF is preserved. FLAIR's upstream commit and the local patch required for empty/no-SQ SAM streams are recorded in `def/kmap_isoseq_discovery.def` and `def/patches/`. The patch reproduces the existing lab installation's fix. Code/reference paths inside tasks are staged or configurable; no lab server path is required by the distribution source.
 
 ## Input and running
 
@@ -176,3 +182,5 @@ The selection matrix reuses the synthetic smoke test's retained cache and checks
 all seven nonempty caller subsets in single mode, each cohort-capable caller in
 multi mode, and joint multi/both modes. Trace checks reject unselected callers;
 QC rows, protein FASTA, HTML reports and cohort count headers are verified.
+
+Official-image compatibility results: [SQANTI3 validation](docs/official_sqanti3_validation_20261026.md).

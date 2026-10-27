@@ -24,9 +24,16 @@ containers/*.log
 
 # NAS-specific study lists and transfer records
 input/sample1.csv
+input/*.nas.csv
 input/*.bak
 NAS_*.txt
 NAS_*.log
 COPY_VERIFICATION.json
 analysis/
 nextflow
+
+release_assets/
+containers/.release-*/
+
+containers/.sqanti3-download.*/
+containers/*.sif.source.json

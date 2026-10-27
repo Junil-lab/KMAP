@@ -12,6 +12,10 @@ mkdir -p "$PIPELINE_DIR/containers"
 cd "$PIPELINE_DIR"
 for name in main sqanti3 discovery; do
     [[ "$MODE" == all || "$MODE" == "$name" ]] || continue
+    if [[ "$name" == sqanti3 ]]; then
+        bash "$PIPELINE_DIR/bin/fetch_sqanti3.sh"
+        continue
+    fi
     image="$PIPELINE_DIR/containers/kmap_isoseq_${name}.sif"
     if [[ -f "$image" ]] && (( ! REBUILD )); then
         singularity test "$image"
@@ -32,5 +36,5 @@ for name in main sqanti3 discovery; do
 done
 bash "$PIPELINE_DIR/bin/check_containers.sh" \
     "$PIPELINE_DIR/containers/kmap_isoseq_main.sif" \
-    "$PIPELINE_DIR/containers/kmap_isoseq_sqanti3.sif" \
+    "$PIPELINE_DIR/containers/sqanti3_v6.0.1.sif" \
     "$PIPELINE_DIR/containers/kmap_isoseq_discovery.sif"
