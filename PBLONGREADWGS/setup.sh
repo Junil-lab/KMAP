@@ -96,7 +96,7 @@ done
 if [[ $MISSING_SIF -gt 0 ]]; then
     echo ""
     echo "  Download them:"
-    echo "    wget -O ${PIPELINE_DIR}/containers/kmap_pbwgs_v2.sif https://github.com/hi6167579-droid/KMAP_Pipeline/releases/download/v1.0.0/kmap_pbwgs_v1.0.0.sif"
+    echo "    wget -O ${PIPELINE_DIR}/containers/kmap_pbwgs_v2.sif https://github.com/Junil-lab/KMAP/releases/download/v1.0.0/kmap_pbwgs_v1.0.0.sif"
     echo "    singularity pull ${PIPELINE_DIR}/containers/deepvariant_1.9.0-gpu.sif docker://google/deepvariant:1.9.0-gpu"
     echo "    singularity pull ${PIPELINE_DIR}/containers/methbat_1.1.0.sif docker://quay.io/biocontainers/methbat:1.1.0--h9ee0642_0"
 fi

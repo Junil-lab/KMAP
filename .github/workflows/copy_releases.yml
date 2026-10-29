@@ -1,0 +1,54 @@
+# Copy the container releases from the original repository
+# (hi6167579-droid/KMAP_Pipeline) into this repository.
+# Run once from the Actions tab: "Copy container releases" -> "Run workflow".
+# Assets are downloaded and re-uploaded on GitHub's runner; nothing is stored in git.
+name: Copy container releases
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Release tags to copy (space separated)"
+        default: "v1.0.0 isoseq-v1.0.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SRC: hi6167579-droid/KMAP_Pipeline
+      DST: ${{ github.repository }}
+    steps:
+      - name: Copy releases
+        run: |
+          set -euo pipefail
+          for tag in ${{ inputs.tags }}; do
+            echo "=== ${tag}"
+            mkdir -p "assets/${tag}"
+            gh release download "${tag}" --repo "${SRC}" --dir "assets/${tag}" --clobber
+
+            # every downloaded file must match the size reported by the source release
+            gh release view "${tag}" --repo "${SRC}" --json assets \
+              --jq '.assets[] | "\(.name) \(.size)"' | while read -r name size; do
+                got=$(stat -c %s "assets/${tag}/${name}")
+                [ "${got}" = "${size}" ] || { echo "size mismatch: ${name} ${got} != ${size}"; exit 1; }
+                echo "ok  ${name} (${size} bytes)"
+              done
+            if [ -f "assets/${tag}/SHA256SUMS" ]; then
+              (cd "assets/${tag}" && sed 's#containers/##' SHA256SUMS | sha256sum -c -)
+            fi
+
+            title=$(gh release view "${tag}" --repo "${SRC}" --json name --jq .name)
+            gh release view "${tag}" --repo "${SRC}" --json body --jq .body > "notes_${tag}.md"
+            if gh release view "${tag}" --repo "${DST}" > /dev/null 2>&1; then
+              gh release upload "${tag}" assets/"${tag}"/* --repo "${DST}" --clobber
+            else
+              gh release create "${tag}" assets/"${tag}"/* --repo "${DST}" \
+                --title "${title}" --notes-file "notes_${tag}.md"
+            fi
+            rm -rf "assets/${tag}"
+          done

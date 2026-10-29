@@ -5,7 +5,7 @@ PIPELINE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOWNLOAD=0
 DOWNLOAD_SQANTI3=1
 RELEASE_TAG=''
-RELEASE_REPO='hi6167579-droid/KMAP_Pipeline'
+RELEASE_REPO='Junil-lab/KMAP'
 ASSETS_DIR=''
 usage() {
     cat <<'HELP'
@@ -13,7 +13,7 @@ Usage: bash setup.sh [options]
   (no options)                 Prepare Java/Nextflow, fetch missing official SQANTI3, check local files
   --download-containers        Download KMAP main/discovery SIFs from a published release
   --release-tag TAG            Required with --download-containers (no implicit latest)
-  --release-repo OWNER/REPO    Default: hi6167579-droid/KMAP_Pipeline
+  --release-repo OWNER/REPO    Default: Junil-lab/KMAP
   --assets-dir DIR            Install from an already downloaded release asset folder
   --no-download-sqanti3        Check local files without fetching missing SQANTI3
   -h, --help                   Show this help

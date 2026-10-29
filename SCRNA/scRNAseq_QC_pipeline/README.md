@@ -82,8 +82,8 @@ tar -xzf refdata-gex-GRCh38-2024-A.tar.gz
 ### 1. Check the environment (once)
 
 ```bash
-git clone https://github.com/hi6167579-droid/KMAP_Pipeline.git
-cd KMAP_Pipeline/SCRNA/scRNAseq_QC_pipeline
+git clone https://github.com/Junil-lab/KMAP.git
+cd KMAP/SCRNA/scRNAseq_QC_pipeline
 
 # containers (see Containers above), then
 bash setup.sh          # checks Java / nextflow / Singularity / SIFs; "All checks passed." means ready

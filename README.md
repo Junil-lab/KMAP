@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/hi6167579-droid/KMAP_Pipeline/releases"><img alt="release" src="https://img.shields.io/github/v/release/hi6167579-droid/KMAP_Pipeline?label=release&color=2ea44f"></a>
+  <a href="https://github.com/Junil-lab/KMAP/releases"><img alt="release" src="https://img.shields.io/github/v/release/Junil-lab/KMAP?label=release&color=2ea44f"></a>
   <img alt="Nextflow" src="https://img.shields.io/badge/Nextflow-DSL2%20%E2%89%A5%2026.04-0DC09D">
   <img alt="Singularity" src="https://img.shields.io/badge/run%20with-Singularity%20%2F%20Apptainer-1d355c">
   <img alt="Reference" src="https://img.shields.io/badge/reference-GRCh38-blue">
@@ -68,12 +68,12 @@ The tool set mirrors PacBio's official [HiFi-human-WGS-WDL](https://github.com/P
 ## Quick start (WGS)
 
 ```bash
-git clone https://github.com/hi6167579-droid/KMAP_Pipeline.git
-cd KMAP_Pipeline/PBLONGREADWGS
+git clone https://github.com/Junil-lab/KMAP.git
+cd KMAP/PBLONGREADWGS
 
 # containers
 wget -O containers/kmap_pbwgs_v2.sif \
-  https://github.com/hi6167579-droid/KMAP_Pipeline/releases/download/v1.0.0/kmap_pbwgs_v1.0.0.sif
+  https://github.com/Junil-lab/KMAP/releases/download/v1.0.0/kmap_pbwgs_v1.0.0.sif
 singularity pull containers/deepvariant_1.9.0-gpu.sif docker://google/deepvariant:1.9.0-gpu
 singularity pull containers/methbat_1.1.0.sif docker://quay.io/biocontainers/methbat:1.1.0--h9ee0642_0
 
@@ -95,7 +95,7 @@ New here? Run the **[HG002 example](PBLONGREADWGS/example/HG002_chr20XY/)** firs
 ## Repository layout
 
 ```
-KMAP_Pipeline/
+KMAP/
 ├── PBLONGREADWGS/          PacBio HiFi WGS pipeline
 │   ├── main.nf, nextflow.config, run.sh, setup.sh
 │   ├── def/                container recipes
@@ -112,5 +112,5 @@ KMAP_Pipeline/
 - [PBLONGREADWGS/example/HG002_chr20XY/](PBLONGREADWGS/example/HG002_chr20XY/) — step-by-step test run with expected results
 - [PBLONGREADRNA/README.md](PBLONGREADRNA/README.md) — tool selection, sample/cohort modes, SQANTI3 and ORF outputs
 - [SCRNA/scRNAseq_QC_pipeline/README.md](SCRNA/scRNAseq_QC_pipeline/README.md) — scRNA-seq workflow and QC defaults
-- [Releases](https://github.com/hi6167579-droid/KMAP_Pipeline/releases) — prebuilt containers
+- [Releases](https://github.com/Junil-lab/KMAP/releases) — prebuilt containers
 
