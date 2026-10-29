@@ -46,19 +46,17 @@ Every module follows the same pattern: **one samplesheet in, one command to run,
 ## PBLONGREADWGS at a glance
 
 ```mermaid
-flowchart LR
-    A[HiFi BAM<br/>+ sex XX/XY] --> J{5mC tags?}
-    J -- no, kinetics only --> B0[01 Jasmine<br/>5mC calling]
+flowchart TB
+    A[HiFi BAM + sex XX/XY] --> J{5mC tags?}
+    J -- no --> B0[01 Jasmine<br/>5mC from kinetics]
     J -- yes --> B[02 pbmm2<br/>align to GRCh38]
     B0 --> B
     B --> C[03 DeepVariant<br/>SNV / indel]
-    B --> D[04 Sawfish<br/>SV + CNV]
+    B --> D[04 Sawfish<br/>SV / CNV]
     B --> E[05 TRGT<br/>tandem repeats]
-    C --> F[06 HiPhase<br/>joint phasing]
-    D --> F
-    E --> F
-    F --> G[07 pb-CpG-tools<br/>hap1 / hap2 methylation]
-    F --> M[07b MethBat<br/>5mC / 5hmC / 6mA pileup]
+    C & D & E --> F[06 HiPhase<br/>joint phasing]
+    F --> G[07 pb-CpG-tools<br/>CpG, hap1 / hap2]
+    F --> M[07b MethBat<br/>5mC / 5hmC / 6mA]
     F --> H[(phased VCFs<br/>haplotagged BAM)]
     G --> Q[QC summary]
 ```
@@ -78,6 +76,61 @@ flowchart LR
 **Sex-aware calling** — the samplesheet `sex` column switches DeepVariant haploid calling, Sawfish expected copy number and TRGT karyotype together. On HG002 (XY): 0 heterozygous DeepVariant calls on chrX outside the PARs, and haploid TRGT and Sawfish genotypes on chrX/chrY.
 
 The tool set mirrors PacBio's official [HiFi-human-WGS-WDL](https://github.com/PacificBiosciences/HiFi-human-WGS-WDL) v4.0.0.
+
+---
+
+## PBLONGREADRNA at a glance
+
+```mermaid
+flowchart TB
+    A[FLNC BAM per sample] --> B[pbmm2 ISOSEQ<br/>align once per sample]
+    B --> I1[IsoQuant]
+    B --> I2[isocall<br/>profile + call]
+    B --> I3[FLAIR<br/>transcriptome]
+    I1 & I2 & I3 --> S[SQANTI3 QC<br/>+ ORF: TD2 / PSAURON]
+    I2 & I3 -. 2+ samples .-> C[cohort transcriptome<br/>isocall / FLAIR]
+    C --> S
+    S --> R[HTML report<br/>+ QC summary]
+```
+
+| Step | Tool | Version |
+|---|---|---|
+| Alignment | pbmm2 (ISOSEQ preset) | 26.1.99 |
+| Transcript discovery | IsoQuant | 3.13.1 |
+| Transcript discovery | isocall | 1.3.0 |
+| Transcript discovery | FLAIR | 3.0.0 (pinned commit + patch) |
+| Structural QC | SQANTI3 | 6.0.1 (official image) |
+| ORF prediction | TD2 / PSAURON | in the SQANTI3 image |
+
+Choose callers with `--methods isoquant,isocall,flair`; with more than one sample, isocall and FLAIR also build a joint cohort transcriptome (`--run_cohort false` to skip). Details: [PBLONGREADRNA/README.md](PBLONGREADRNA/README.md).
+
+---
+
+## SCRNA at a glance
+
+```mermaid
+flowchart TB
+    A[10x FASTQ] --> B[01 Cell Ranger<br/>count matrix]
+    B --> C[02 CellBender<br/>ambient RNA removal]
+    C --> D[03 Scanpy QC<br/>cell QC, all genes kept]
+    D --> E[04 SOLO<br/>doublet scores]
+    E --> F[05 singlet filter]
+    D --> F
+    F --> G[(singlet H5AD<br/>all genes + raw)]
+    F --> Q[06 QC summary]
+    X[raw H5] -. start_step=cellbender .-> C
+    Y[CellBender H5] -. start_step=qc .-> D
+```
+
+| Step | Tool | Version |
+|---|---|---|
+| Count matrix | Cell Ranger | 10.0.0 (built from your own 10x download) |
+| Background removal | CellBender | 0.3.0 (public image, tag `latest`) |
+| Cell QC, HVGs | Scanpy | 1.11.5 |
+| Doublet detection | SOLO (solo-sc) + scvi-tools | 1.2 + 1.4.0.post1 |
+| Deep learning backend | PyTorch | 2.9.0 (CUDA 12.8) |
+
+Mitochondrial filtering is off by default (`--mt_threshold 20` to enable); all input genes stay in the final H5AD and `.raw`. Details: [SCRNA/scRNAseq_QC_pipeline/README.md](SCRNA/scRNAseq_QC_pipeline/README.md).
 
 ---
 
