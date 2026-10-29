@@ -17,7 +17,7 @@ def parse_args():
     parser.add_argument("--output-full", required=True, help="Full post-QC H5AD output")
     parser.add_argument("--output-hvg", required=True, help="HVG subset H5AD output for SOLO")
     parser.add_argument("--metrics", required=True, help="Per-sample QC metrics CSV")
-    parser.add_argument("--mt-threshold", type=float, default=20.0)
+    parser.add_argument("--mt-threshold", type=float, default=None, help="Optional mitochondrial percentage cutoff; disabled by default")
     parser.add_argument("--min-genes", type=int, default=200)
     parser.add_argument("--min-counts", type=int, default=500)
     parser.add_argument("--min-cells-gene", type=int, default=5)
@@ -143,28 +143,42 @@ def main():
     total_counts_input_values = adata.obs["total_counts"].to_numpy()
     n_genes_input_values = adata.obs["n_genes_by_counts"].to_numpy()
     mt_values = adata.obs["pct_counts_mt"].to_numpy()
-    cells_mt_ge_threshold = int((adata.obs["pct_counts_mt"] >= args.mt_threshold).sum())
+    cells_mt_ge_threshold = (
+        int((adata.obs["pct_counts_mt"] >= args.mt_threshold).sum())
+        if args.mt_threshold is not None else ""
+    )
 
     keep_cells = (
-        (adata.obs["pct_counts_mt"] < args.mt_threshold)
-        & (adata.obs["n_genes_by_counts"] >= args.min_genes)
+        (adata.obs["n_genes_by_counts"] >= args.min_genes)
         & (adata.obs["total_counts"] >= args.min_counts)
     )
+    if args.mt_threshold is not None:
+        keep_cells &= adata.obs["pct_counts_mt"] < args.mt_threshold
     adata = adata[keep_cells].copy()
     if adata.n_obs == 0:
         raise RuntimeError(
             f"{args.sample_id}: no cells remain after QC "
-            f"(mt < {args.mt_threshold}, genes >= {args.min_genes}, counts >= {args.min_counts})"
+            f"(mt filter: {args.mt_threshold if args.mt_threshold is not None else 'off'}, "
+            f"genes >= {args.min_genes}, counts >= {args.min_counts})"
         )
 
-    sc.pp.filter_genes(adata, min_cells=args.min_cells_gene)
-    if adata.n_vars == 0:
-        raise RuntimeError(f"{args.sample_id}: no genes remain after min_cells={args.min_cells_gene}.")
+    # Snapshot corrected counts after CELL QC, before any GENE filtering.
+    # AnnData.raw preserves all variables when the training copy is subset.
+    adata.raw = adata.copy()
+    adata.uns["counts_provenance"] = "input counts after cell QC; no gene filtering or normalization"
+    solo_adata = adata.copy()
+    sc.pp.filter_genes(solo_adata, min_cells=args.min_cells_gene)
+    if solo_adata.n_vars == 0:
+        raise RuntimeError(f"{args.sample_id}: no training genes remain after min_cells={args.min_cells_gene}.")
 
-    ensure_counts_layer(adata)
-    hvg_method = compute_hvg_stable(adata, args.hvg_n_top)
-    hvg_mask = adata.var["highly_variable"].to_numpy(dtype=bool)
-    hvg_adata = adata[:, hvg_mask].copy()
+    hvg_method = compute_hvg_stable(solo_adata, args.hvg_n_top)
+    hvg_mask = solo_adata.var["highly_variable"].to_numpy(dtype=bool)
+    hvg_adata = solo_adata[:, hvg_mask].copy()
+    adata.var["solo_gene_filter_pass"] = adata.var_names.isin(solo_adata.var_names)
+    adata.var["highly_variable"] = adata.var_names.isin(hvg_adata.var_names)
+    if "hvg_fallback_errors" in solo_adata.uns:
+        adata.uns["hvg_fallback_errors"] = solo_adata.uns["hvg_fallback_errors"]
+    assert adata.n_vars == n_genes_input == adata.raw.n_vars == hvg_adata.raw.n_vars
 
     adata.write_h5ad(args.output_full, compression="gzip")
     hvg_adata.write_h5ad(args.output_hvg, compression="gzip")
@@ -176,11 +190,14 @@ def main():
         "n_genes_input": n_genes_input,
         "n_cells_after_qc": int(adata.n_obs),
         "n_genes_after_qc": int(adata.n_vars),
+        "n_genes_solo_prefilter": int(solo_adata.n_vars),
+        "n_genes_raw": int(adata.raw.n_vars),
         "n_hvg": int(hvg_adata.n_vars),
         "removed_cells_total": int(n_cells_input - adata.n_obs),
         "removed_cells_total_pct": round((n_cells_input - adata.n_obs) / max(n_cells_input, 1) * 100, 3),
         "cells_mt_ge_threshold": cells_mt_ge_threshold,
-        "mt_threshold": args.mt_threshold,
+        "mt_threshold": args.mt_threshold if args.mt_threshold is not None else "",
+        "mt_filter_enabled": args.mt_threshold is not None,
         "min_genes": args.min_genes,
         "min_counts": args.min_counts,
         "min_cells_gene": args.min_cells_gene,

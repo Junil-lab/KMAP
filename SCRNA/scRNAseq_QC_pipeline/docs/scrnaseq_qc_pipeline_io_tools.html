@@ -233,7 +233,7 @@
     <div class="meta">
       <span class="pill">Workflow: Nextflow</span>
       <span class="pill">Runtime: Singularity / Apptainer SIF</span>
-      <span class="pill">Default mitochondrial filter: pct_counts_mt &lt; 20</span>
+      <span class="pill">Mitochondrial filter: off by default (--mt_threshold 20 to enable)</span>
       <span class="pill">Default HVG: 2,000 genes</span>
     </div>
 
@@ -313,8 +313,8 @@
             </td>
             <td><a href="https://scanpy.scverse.org/en/stable/">Scanpy</a> + <code>qc_for_solo.py</code></td>
             <td>
-              Removes low-quality cells by mitochondrial fraction, detected genes and total UMI count.
-              Defaults: <code>pct_counts_mt &lt; 20</code>, <code>min_genes=200</code>, <code>min_counts=500</code>, <code>min_cells_gene=5</code>.
+              Removes low-quality cells by detected genes and total UMI count (and mitochondrial fraction if <code>--mt_threshold</code> is set). All input genes are kept; the gene prefilter applies only to the SOLO training copy.
+              Defaults: MT filter off, <code>min_genes=200</code>, <code>min_counts=500</code>, <code>min_cells_gene=5</code>.
             </td>
           </tr>
           <tr>

@@ -11,8 +11,9 @@ class BarcodeTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.p=Path(self.tmp.name)
     def run_case(self,names,labels):
-        full=ad.AnnData(np.ones((2,3)),obs=pd.DataFrame(index=['A_c1','A_c2']))
-        solo=ad.AnnData(np.ones((len(names),1)),obs=pd.DataFrame({'is_doublet':labels},index=names))
+        full=ad.AnnData(np.ones((2,3)),obs=pd.DataFrame(index=['A_c1','A_c2']));full.raw=full.copy()
+        prob=np.linspace(0.2,0.8,len(names))  # corrected SOLO probabilities (correct_solo_scores.py output)
+        solo=ad.AnnData(np.ones((len(names),1)),obs=pd.DataFrame({'is_doublet':labels,'logit_scores':prob,'softmax_scores':prob,'double_softmax_scores_original':1/(1+np.exp(1-2*prob))},index=names))
         full.write_h5ad(self.p/'full.h5ad');solo.write_h5ad(self.p/'solo.h5ad')
         argv=['filter','--full-h5ad',str(self.p/'full.h5ad'),'--solo-h5ad',str(self.p/'solo.h5ad'),'--sample-id','A','--annotated-output',str(self.p/'ann.h5ad'),'--output',str(self.p/'out.h5ad'),'--summary',str(self.p/'summary.csv'),'--doublet-barcodes',str(self.p/'doublets.csv')]
         with patch.object(sys,'argv',argv):m.main()

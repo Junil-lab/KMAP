@@ -9,8 +9,8 @@ A Nextflow (DSL2) + Singularity pipeline that takes 10x Genomics FASTQs per samp
   │
   ├─ 01 CELLRANGER_COUNT              FASTQ → raw / filtered feature-barcode matrix
   ├─ 02 CELLBENDER_REMOVE_BACKGROUND  ambient RNA / background removal (GPU)
-  ├─ 03 SCANPY_QC_FOR_SOLO            cell / gene QC, HVG subset for SOLO
-  ├─ 04 SOLO_DOUBLETS                 doublet scoring (GPU)
+  ├─ 03 SCANPY_QC_FOR_SOLO            cell QC (all genes kept), gene prefilter + HVG subset for SOLO only
+  ├─ 04 SOLO_DOUBLETS                 doublet scoring (GPU), then score correction (correct_solo_scores.py)
   ├─ 05 FILTER_SOLO_SINGLETS          SOLO labels added to the full matrix, singlet-only matrix
   └─ 06 QC_MERGE                      QC summary for all samples
 ```
@@ -21,10 +21,10 @@ You can also start later: from an existing raw matrix (`start_step=cellbender`) 
 
 | Filter | Default | Option |
 |---|---|---|
-| mitochondrial fraction | remove cells with `pct_counts_mt >= 20` | `--mt_threshold` |
+| mitochondrial fraction | **off** — `pct_counts_mt` is computed and recorded but not used to remove cells | `--mt_threshold 20` removes cells with `pct_counts_mt >= 20` |
 | detected genes | remove cells with `< 200` genes | `--min_genes` |
 | total UMI | remove cells with `< 500` counts | `--min_counts` |
-| gene prefilter | keep genes seen in `>= 5` cells | `--min_cells_gene` |
+| gene prefilter | genes seen in `>= 5` cells — applied **only to the SOLO training copy**, not to the final matrices | `--min_cells_gene` |
 | HVGs for SOLO | `2000` (`seurat_v3`, falls back to log-normalized Seurat, then dispersion) | `--hvg_n_top` |
 | CellBender | FPR `0.01`, `150` epochs | `--cellbender_fpr`, `--cellbender_epochs` |
 
@@ -171,13 +171,13 @@ Nextflow keeps every intermediate file in the work directory, and outputs are **
 | | `<id>/outs/possorted_genome_bam.bam` (+ `.bai`) | aligned reads (only with `create_bam=true`) |
 | `02_cellbender` | `*.cellbender_cleaned.h5` | background-corrected counts |
 | | `*.cellbender_cleaned*.csv`, `*.pdf` | called cell barcodes, metrics, training / cell-probability plots |
-| `03_scanpy_qc` | `*_qc_full.h5ad` | all genes, cells that passed QC; no SOLO labels yet |
-| | `*_qc_hvg2000.h5ad` | HVG subset used to train SOLO (not for final analysis) |
+| `03_scanpy_qc` | `*_qc_full.h5ad` | cells that passed QC, **all input genes** in `.X`, `layers["counts"]` and `.raw`; no SOLO labels yet |
+| | `*_qc_hvg2000.h5ad` | SOLO training copy: `.X` = HVGs after the gene prefilter, `.raw` = all input genes (not for final analysis) |
 | | `*.qc_metrics.csv` | cells / genes before and after QC, cells removed (total and by the MT filter), median counts / genes / % MT before and after |
-| `04_solo` | `*.solo/` | SOLO model output: `soloed.h5ad`, doublet scores, plots |
-| `05_singlets` | `*_qc_solo_annotated_full.h5ad` | every QC-passed cell, with `solo_is_doublet`, `solo_softmax_scores`, `solo_logit_scores` in `obs` |
-| | `*_qc_solo_singlets_full.h5ad` | only `solo_is_doublet == False` cells — **the matrix for downstream analysis** |
-| | `*.solo_summary.csv` | cells after QC, doublets, singlets, doublet % |
+| `04_solo` | `*.solo/` | SOLO model output: `soloed.h5ad`, doublet scores (corrected, see [SOLO score correction](#solo-score-correction)), `*_double_softmax_original` archives, `score_correction.json`, plots |
+| `05_singlets` | `*_qc_solo_annotated_full.h5ad` | every QC-passed cell and all input genes (+ `.raw`), with `solo_is_doublet`, `solo_doublet_probability`, `solo_softmax_scores`, `solo_logit_scores`, `solo_double_softmax_scores_original` in `obs` |
+| | `*_qc_solo_singlets_full.h5ad` | only `solo_is_doublet == False` cells, all input genes (+ `.raw`) — **the matrix for downstream analysis** |
+| | `*.solo_summary.csv` | cells after QC, doublets, singlets, doublet %, gene counts (`n_genes_full`, `n_genes_raw`) |
 | | `*.solo_doublet_barcodes.csv` | barcodes called doublets, with scores |
 | `scrnaseq_qc_summary.csv` | | one row per sample: the QC metrics and SOLO summary combined |
 | `pipeline_info/` | | run time and memory per step (`trace.csv`, `timeline.html`, `report.html`) |
@@ -191,6 +191,26 @@ More detail with example tables: [docs/scrnaseq_qc_pipeline_io_tools.html](docs/
 - **Doublet rate**: if `expected_doublet_rate` is empty, SOLO decides with its own score threshold. For 10x data, setting the rate per sample (from the loaded cell number) is better when known.
 - **GPU**: CellBender and SOLO use `--nv`; pick the card per sample with `cuda_device` or for the whole run with `--cuda_device`.
 - **Cell Ranger license**: the Cell Ranger SIF is built locally from your own download and is not distributed with this repository.
+
+## Full input genes and AnnData.raw
+
+After cell QC (default `genes >= 200`, `counts >= 500`; plus `mt < 20%` if `--mt_threshold 20` is given) and **before any gene filtering**, the pipeline stores every input gene with `adata.raw = adata.copy()`. Here raw means the CellBender background-corrected counts used as input, not the uncorrected Cell Ranger counts.
+
+- `*_qc_full.h5ad`: cell QC only; all input genes in `.X`, `layers["counts"]` and `.raw`.
+- `*_qc_hvg*.h5ad`: the gene prefilter (`min_cells_gene`) and HVG selection are applied to this training copy only. `.X` / `layers["counts"]` hold the HVGs (used to train SOLO), `.raw` holds all input genes.
+- `*_qc_solo_annotated_full.h5ad` and `*_qc_solo_singlets_full.h5ad`: all QC-passed cells (or singlets only) with all input genes, `.raw` and the SOLO calls.
+- If SOLO is missing any QC cell barcode, the run stops instead of silently dropping cells.
+
+In the QC summary, `n_genes_after_qc` and `n_genes_raw` are the number of preserved genes, `n_genes_solo_prefilter` the number after the SOLO gene prefilter, and `n_hvg` the number of genes SOLO was trained on. `.var["solo_gene_filter_pass"]` and `.var["highly_variable"]` mark the genes used for training. Older gene-filtered full files cannot recover the dropped genes; rerun QC from the original input.
+
+## SOLO score correction
+
+The SOLO CLI on our server saves the output of `predict(soft=True)` — already a probability — as `logit_scores` and then applies softmax again. After SOLO finishes, `scripts/correct_solo_scores.py` checks this relation and restores `softmax_scores` (and `solo_softmax_scores`) to the original doublet probability; `solo_doublet_probability` holds the same value.
+
+- `solo_logit_scores` keeps its old values for compatibility, but they are probabilities, not logits.
+- The old double-softmax values are kept in the `*_double_softmax_original` files and the `solo_double_softmax_scores_original` column.
+- The singlet / doublet calls themselves are unchanged.
+- The PDF plots written by the SOLO CLI show the uncorrected scores; this is recorded in `score_correction.json`.
 
 ## QC consistency checks (2026-10-24)
 

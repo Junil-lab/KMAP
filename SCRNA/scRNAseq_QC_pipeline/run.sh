@@ -13,7 +13,7 @@
 #   --cuda_device 0
 #   --cellranger_sif containers/cellranger.sif
 #   --transcriptome /path/to/refdata-gex-...
-#   --mt_threshold 20
+#   --mt_threshold 20  (optional; omit to keep all cells by mitochondrial percentage)
 #   --hvg_n_top 2000
 #   --solo_expected_doublet_rate 0.06
 #   -resume
@@ -126,7 +126,7 @@ Common:
   --cuda_device 0
   --cellranger_sif containers/cellranger.sif
   --transcriptome /path/to/refdata-gex
-  --mt_threshold 20
+  --mt_threshold 20  (optional; omitted by default)
   --hvg_n_top 2000
   --solo_expected_doublet_rate 0.06
   --qc_conda_env /path/to/solo_conda_env

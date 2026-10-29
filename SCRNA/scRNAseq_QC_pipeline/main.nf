@@ -188,13 +188,18 @@ process SCANPY_QC_FOR_SOLO {
     export NUMBA_CACHE_DIR="\$PWD/numba_cache"
     export MPLCONFIGDIR="\$PWD/mpl_cache"
 
+    MT_ARGS=()
+    if [ -n "${params.mt_threshold == null ? '' : params.mt_threshold}" ]; then
+        MT_ARGS=(--mt-threshold "${params.mt_threshold}")
+    fi
+
     python3 "${qc_script}" \\
         --input "${cleaned_h5}" \\
         --sample-id "${meta.id}" \\
         --output-full "${meta.id}_qc_full.h5ad" \\
         --output-hvg "${meta.id}_qc_hvg${params.hvg_n_top}.h5ad" \\
         --metrics "${meta.id}.qc_metrics.csv" \\
-        --mt-threshold "${params.mt_threshold}" \\
+        "\${MT_ARGS[@]}" \\
         --min-genes "${params.min_genes}" \\
         --min-counts "${params.min_counts}" \\
         --min-cells-gene "${params.min_cells_gene}" \\
@@ -213,6 +218,7 @@ process SOLO_DOUBLETS {
     input:
     tuple val(meta), path(hvg_h5ad)
     path solo_json
+    path score_script
 
     output:
     tuple val(meta), path("${meta.id}.solo"), emit: solo_dir
@@ -270,6 +276,7 @@ PYEOF
         ${params.solo_extra_args}
 
     test -s "${meta.id}.solo/soloed.h5ad"
+    python3 "${score_script}" --solo-dir "${meta.id}.solo"
     """
 }
 
@@ -397,6 +404,7 @@ workflow {
     ch_filter_script = Channel.value(file("${projectDir}/scripts/filter_solo_singlets.py", checkIfExists: true))
     ch_merge_script = Channel.value(file("${projectDir}/scripts/merge_qc.py", checkIfExists: true))
     ch_solo_json = Channel.value(file(params.solo_json, checkIfExists: true))
+    ch_score_script = Channel.value(file("${projectDir}/scripts/correct_solo_scores.py", checkIfExists: true))
 
     ch_samples.branch {
         from_cellranger: it[4] == 'cellranger'
@@ -431,7 +439,7 @@ workflow {
     ch_solo_in = SCANPY_QC_FOR_SOLO.out.qc.map { meta, full_h5ad, hvg_h5ad, metrics ->
         tuple(meta, hvg_h5ad)
     }
-    SOLO_DOUBLETS(ch_solo_in, ch_solo_json)
+    SOLO_DOUBLETS(ch_solo_in, ch_solo_json, ch_score_script)
 
     ch_full_by_id = SCANPY_QC_FOR_SOLO.out.qc.map { meta, full_h5ad, hvg_h5ad, metrics ->
         tuple(meta.id, meta, full_h5ad, metrics)
