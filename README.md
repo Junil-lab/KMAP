@@ -21,9 +21,25 @@
 |---|---|---|---|
 | [**PBLONGREADWGS**](PBLONGREADWGS/) | PacBio HiFi WGS (BAM) | alignment → SNV/indel → SV → tandem repeats → joint phasing → CpG methylation, sex-aware on chrX/chrY | ✅ **v1.0.0** — tested on HG002 |
 | [**PBLONGREADRNA**](PBLONGREADRNA/) | PacBio Iso-Seq / Kinnex | pbmm2 → IsoQuant / isocall / FLAIR → SQANTI3 + ORF; sample/cohort modes | available — see module validation report |
-| [**SCRNA**](SCRNA/scRNAseq_QC_pipeline/) | 10x Genomics scRNA-seq (FASTQ) | Cell Ranger → CellBender → QC → SOLO doublet removal | ✅ available |
+| [**SCRNA**](SCRNA/scRNAseq_QC_pipeline/) | 10x Genomics scRNA-seq (FASTQ) | Cell Ranger → CellBender → QC → SOLO doublet removal | ⚠️ available — QC container not distributed yet |
 
 Every module follows the same pattern: **one samplesheet in, one command to run, all tools inside Singularity containers**, so results do not depend on what is installed on the server.
+
+### What is ready in each module
+
+✅ ready · ⚠️ works with extra steps or limits · ❌ not available yet
+
+| | PBLONGREADWGS | SCRNA | PBLONGREADRNA |
+|---|---|---|---|
+| **Input** | HiFi BAM | 10x FASTQ, raw H5 or CellBender H5 | FLNC BAM |
+| **Start from the middle** | `start_step`: jasmine / pbmm2 / deepvariant / hiphase | `start_step`: cellranger / cellbender / qc | – (choose callers with `--methods`) |
+| **Main container** | ✅ GitHub Release `v1.0.0` (`kmap_pbwgs_v1.0.0.sif`) | ❌ `scrnaseq_qc.sif` is not distributed, and `def/scrnaseq_qc.def` copies a conda environment from the lab server, so it cannot be built elsewhere yet | ✅ GitHub Release `isoseq-v1.0.0` (main + discovery) |
+| **Other containers** | ✅ DeepVariant (Docker Hub) and MethBat (quay.io) are pulled with one command | ⚠️ Cell Ranger: build from your own 10x download (license)<br>✅ CellBender pulled from its public image (tag `latest`, version not pinned) | ✅ official SQANTI3 image fetched by `setup.sh` |
+| **Reference** | GRCh38 from NCBI (+ index); TRGT catalog, sex BEDs and CpG islands are in the repo | 10x `refdata-gex` download | hg38 + GENCODE v45 (see `resources/ref/`) |
+| **Java 17 / Nextflow** | ✅ installed by `setup.sh` | ⚠️ Java 17 must already be installed | ✅ installed by `setup.sh` |
+| **Lab-server paths in the code** | ✅ none | ⚠️ conda environment and Java paths of the lab server (`nextflow.config`, `run.sh`, `def/`) | ✅ none |
+| **Tested** | ✅ full HG002 chr20/X/Y run with expected numbers; fresh-clone run; MethBat step on a small test BAM | ⚠️ unit tests + stubbed routing test here; real-data runs only on the lab server | ⚠️ synthetic-read functional tests + 12-sample isocall merge; a full human sample was not rerun for the release |
+| **Example data** | ✅ HG002 chr20/X/Y (download script + expected outputs) | ❌ | ❌ |
 
 ---
 
