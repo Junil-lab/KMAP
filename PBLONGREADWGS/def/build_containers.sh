@@ -6,6 +6,7 @@
 #   bash build_containers.sh               # build everything
 #   bash build_containers.sh main          # build the main container only
 #   bash build_containers.sh deepvariant   # pull the DeepVariant container only
+#   bash build_containers.sh methbat       # pull the MethBat container only
 #
 # The prebuilt main container is also available from the GitHub Release:
 #   https://github.com/hi6167579-droid/KMAP_Pipeline/releases/tag/v1.0.0
@@ -20,6 +21,7 @@ OUT_DIR="${SCRIPT_DIR}/../containers"
 DEF_DIR="${SCRIPT_DIR}"
 BUILD_DIR="${BUILD_DIR:-${TMPDIR:-/tmp}}"
 DV_IMAGE="docker://google/deepvariant:1.9.0-gpu"
+METHBAT_IMAGE="docker://quay.io/biocontainers/methbat:1.1.0--h9ee0642_0"
 
 MODE="${1:-all}"
 mkdir -p "${OUT_DIR}"
@@ -52,18 +54,27 @@ pull_deepvariant() {
     echo "[$(date)] saved: ${OUT_DIR}/deepvariant_1.9.0-gpu.sif"
 }
 
+pull_methbat() {
+    # MethBat uses the official bioconda (biocontainers) image as is
+    echo "[$(date)] pulling ${METHBAT_IMAGE}..."
+    singularity pull --force "${OUT_DIR}/methbat_1.1.0.sif" "${METHBAT_IMAGE}"
+    echo "[$(date)] saved: ${OUT_DIR}/methbat_1.1.0.sif"
+}
+
 case "$MODE" in
     main)        build_main ;;
     deepvariant) pull_deepvariant ;;
+    methbat)     pull_methbat ;;
     all)
         build_main
         pull_deepvariant
+        pull_methbat
         echo ""
         echo "=== build finished ==="
         ls -lh "${OUT_DIR}/"*.sif
         ;;
     *)
-        echo "Usage: bash build_containers.sh [main|deepvariant|all]"
+        echo "Usage: bash build_containers.sh [main|deepvariant|methbat|all]"
         exit 1
         ;;
 esac

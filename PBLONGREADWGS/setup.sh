@@ -84,7 +84,7 @@ fi
 echo ""
 echo "[4] Singularity containers (.sif)"
 MISSING_SIF=0
-for sif in kmap_pbwgs_v2.sif deepvariant_1.9.0-gpu.sif; do
+for sif in kmap_pbwgs_v2.sif deepvariant_1.9.0-gpu.sif methbat_1.1.0.sif; do
     if [[ -f "${PIPELINE_DIR}/containers/${sif}" ]]; then
         SIZE=$(du -shL "${PIPELINE_DIR}/containers/${sif}" | cut -f1)
         check "containers/${sif} (${SIZE})"
@@ -98,6 +98,7 @@ if [[ $MISSING_SIF -gt 0 ]]; then
     echo "  Download them:"
     echo "    wget -O ${PIPELINE_DIR}/containers/kmap_pbwgs_v2.sif https://github.com/hi6167579-droid/KMAP_Pipeline/releases/download/v1.0.0/kmap_pbwgs_v1.0.0.sif"
     echo "    singularity pull ${PIPELINE_DIR}/containers/deepvariant_1.9.0-gpu.sif docker://google/deepvariant:1.9.0-gpu"
+    echo "    singularity pull ${PIPELINE_DIR}/containers/methbat_1.1.0.sif docker://quay.io/biocontainers/methbat:1.1.0--h9ee0642_0"
 fi
 
 # ── 5. Reference files ───────────────────────────────────────
@@ -116,6 +117,7 @@ check_ref "GRCh38_no_alt_analysis_set.fna"
 check_ref "GRCh38_no_alt_analysis_set.fna.fai"
 check_ref "GRCh38_no_alt_analysis_set.fna.mmi"
 check_ref "trgt/adotto_strchive_20250827.hg38.noFailTag.bed.gz"
+check_ref "methbat/cpgIslandExt.sorted.hg38.tsv"  # MethBat profile
 check_ref "sex/GRCh38.PAR.bed"            # DeepVariant haploid (XY)
 check_ref "sex/expected_cn.hg38.XX.bed"   # Sawfish
 check_ref "sex/expected_cn.hg38.XY.bed"   # Sawfish

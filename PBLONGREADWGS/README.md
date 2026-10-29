@@ -13,7 +13,9 @@ HiFi BAM (one BAM per sample, whole genome)
   ├─ 04 SAWFISH      structural variants (SV)
   ├─ 05 TRGT         tandem repeat genotyping (adotto + STRchive catalog)
   ├─ 06 HIPHASE      joint SNV + SV + TR phasing, haplotagged BAM
-  └─ 07 CPG_TOOLS    CpG methylation (combined / hap1 / hap2)
+  ├─ 07 CPG_TOOLS    CpG methylation, pb-CpG-tools model mode (combined / hap1 / hap2)
+  └─ 07b METHBAT     CpG methylation, MethBat pileup (5mC / 5hmC / 6mA) + CpG island profile
+                     (same haplotagged BAM as 07, runs in parallel; --run_methbat false to skip)
        └─ QC summary (per sample + all samples)
 ```
 
@@ -38,8 +40,10 @@ For cell lines whose karyotype differs from the donor's sex (e.g. a line that lo
 | GPU (optional) | – | for DeepVariant; without one use `--use_gpu false` |
 | `containers/kmap_pbwgs_v2.sif` | [GitHub Release v1.0.0](https://github.com/hi6167579-droid/KMAP_Pipeline/releases/tag/v1.0.0) | pbmm2, jasmine, sawfish, trgt, hiphase, pb-CpG-tools, samtools/bcftools — can be built with `def/build_containers.sh` |
 | `containers/deepvariant_1.9.0-gpu.sif` | Docker Hub | `google/deepvariant:1.9.0-gpu` |
+| `containers/methbat_1.1.0.sif` | bioconda (quay.io) | `quay.io/biocontainers/methbat:1.1.0--h9ee0642_0` (7 MB) |
 | `resources/ref/GRCh38_no_alt_analysis_set.fna` (+ `.fai`, `.mmi`) | NCBI (see [Reference genome](#reference-genome)) | ~3.1 GB + 5.8 GB `.mmi` |
 | `resources/ref/trgt/adotto_strchive_20250827.hg38.noFailTag.bed.gz` | **in this repo** | catalog from the PacBio HiFi-human-WGS-WDL v4.0.0 reference bundle (Zenodo) with the `;INCLUDE_FAIL_READS` tag removed (same processing as the WDL) |
+| `resources/ref/methbat/cpgIslandExt.sorted.hg38.tsv` | **in this repo** | CpG islands for `methbat profile`, from the MethBat repository `data/` folder |
 | `resources/ref/sex/*.bed` | **in this repo** | PAR BED, Sawfish expected copy number BEDs |
 
 The GRCh38 reference and BAMs are not in the repo because of their size (`.gitignore`).
@@ -76,6 +80,7 @@ cd KMAP_Pipeline/PBLONGREADWGS
 wget -O containers/kmap_pbwgs_v2.sif \
   https://github.com/hi6167579-droid/KMAP_Pipeline/releases/download/v1.0.0/kmap_pbwgs_v1.0.0.sif
 singularity pull containers/deepvariant_1.9.0-gpu.sif docker://google/deepvariant:1.9.0-gpu
+singularity pull containers/methbat_1.1.0.sif docker://quay.io/biocontainers/methbat:1.1.0--h9ee0642_0
 
 # GRCh38 reference (+ .fai, .mmi) goes in resources/ref/ (see Reference genome above)
 bash setup.sh          # installs Java 17 if needed; checks Singularity / nextflow / SIFs / references; all [OK] means ready
@@ -188,6 +193,7 @@ Memory: the largest step is DeepVariant (~31 GB peak in the test; up to 64 GB is
 ├── 06c_phased_SV/
 ├── 06d_phased_TR/
 ├── 07_CpG_methylation/
+├── 07b_MethBat/
 └── logs/
 <outdir>/qc_summary/      QC table for all samples
 <outdir>/pipeline_info/   timeline / report / trace, run logs
@@ -214,6 +220,10 @@ Memory: the largest step is DeepVariant (~31 GB peak in the test; up to 64 GB is
 | `06d_phased_TR` | `*.tr.phased.vcf.gz` | tandem repeats from 05 with phase |
 | `07_CpG_methylation` | `*.combined.bed.gz` | per-CpG methylation: position, `mod_score` (% methylated, 0–100), `cov` (depth), estimated methylated / unmethylated read counts |
 | | `*.hap1.bed.gz`, `*.hap2.bed.gz` | the same per haplotype (allele-specific methylation) |
+| `07b_MethBat` | `*.5mC.bed.gz` | MethBat pileup per CpG; `type` column `Total` / `hap1` / `hap2` in one file. `mod_score` (% methylated), `cov`, `mod_count` / `unmod_count` (read counts, not model estimates) |
+| | `*.5hmC.bed.gz`, `*.6mA.bed.gz` | the same for 5hmC and 6mA (stranded); empty unless the BAM has those tags |
+| | `*.cpg_island_profile.tsv` | one row per CpG island: `summary_label` (`Methylated` / `Unmethylated` / `AlleleSpecificMethylation` / `NoData`), mean hap1 / hap2 / combined methylation, ASM Fisher p-value, phased site counts, coverage |
+| | `*.summary.json` | MethBat run settings and per-modification summary |
 | `qc_summary.csv` | | one row per sample: mapping rate, reads, SV count, phased variants, phase blocks, maximum chromosome NG50 |
 | `pipeline_info/` | | run time and memory per step (`trace.csv`, `timeline.html`, `report.html`) |
 
@@ -224,6 +234,7 @@ Memory: the largest step is DeepVariant (~31 GB peak in the test; up to 64 GB is
 ## Notes
 
 - **Runtime**: HG002 chr20+X+Y (~5% of the genome) on 5 cores took 3 h 16 min, 76% of it DeepVariant. Give a whole-genome 30x run plenty of cores.
+- **pb-CpG-tools vs MethBat**: both run on the same haplotagged BAM. pb-CpG-tools 3.0.0 (model mode, reference CpGs) is kept as the main CpG output because it agreed better with bisulfite data in our comparison; MethBat 1.1.0 (the tool PacBio is moving to; pb-CpG-tools will be deprecated) is added for 5hmC/6mA, CpG island profiles and future MethBat analyses. MethBat reports CpGs found in the reads, so a small fraction of its sites are not CG in the reference. MethBat runs with its default settings, as its developers recommend.
 - **Methylation**: the pipeline summarises the methylation tags already in the BAM. 5hmC/6mA are only available if the tags were produced at sequencing time and the kinetics were kept.
 - **Check TRGT logs**: TRGT exits 0 even if some loci fail. Check the `[ERROR]` lines in the `05_tandem_repeats` task log.
 - **Removed steps**: variant annotation (VEP, AnnotSV) and sTELLeR (TE detection) were removed in this version.

@@ -12,7 +12,8 @@ nextflow.enable.dsl = 2
 //   04 structural_var    ← SAWFISH
 //   05 tandem_repeats    ← TRGT
 //   06 phasing           ← HIPHASE (joint SNV+SV+TR)
-//   07 CpG_methylation   ← pb-CpG-tools
+//   07 CpG_methylation   ← pb-CpG-tools 3.0.0 (model mode)
+//   07b MethBat          ← MethBat 1.1.0 pileup (5mC/5hmC/6mA) + CpG island profile  (--run_methbat false to skip)
 //   (VEP / AnnotSV annotation and sTELLeR TE detection steps have been removed)
 //
 // samplesheet CSV: sample_id, bam, sex, start_step
@@ -285,6 +286,45 @@ process CPG_TOOLS {
 }
 
 // ============================================================
+// STEP 07b: METHBAT — MethBat pileup (count) + CpG island profile
+//   runs on the same haplotagged BAM as CPG_TOOLS, in parallel
+//   MethBat default settings (recommended by the developers):
+//   min-mapq 1, min-coverage 4, edge-trimming 20, phase-set-min-fraction 0.7
+// ============================================================
+process METHBAT {
+    tag "${meta.id}"
+    label 'high_mem'
+    container params.methbat_sif
+    publishDir { "${params.outdir}/${meta.id}/07b_MethBat" }, mode: 'copy'
+
+    input:
+    tuple val(meta), path(bam), path(bai)
+
+    output:
+    tuple val(meta), path("${meta.id}.5mC.bed.gz"), emit: methbat_bed
+    path "${meta.id}.5mC.bed.gz.tbi"
+    path "${meta.id}.5hmC.bed.gz*", optional: true
+    path "${meta.id}.6mA.bed.gz*",  optional: true
+    path "${meta.id}.summary.json"
+    path "${meta.id}.cpg_island_profile.tsv"
+
+    script:
+    """
+    methbat --version
+
+    methbat pileup \\
+        --threads ${task.cpus} \\
+        --input-bam ${bam} \\
+        --output-prefix ${meta.id}
+
+    methbat profile \\
+        --input-pileup ${meta.id}.5mC.bed.gz \\
+        --input-regions ${params.methbat_regions} \\
+        --output-region-profile ${meta.id}.cpg_island_profile.tsv
+    """
+}
+
+// ============================================================
 // QC_COLLECT / QC_MERGE
 // ============================================================
 process QC_COLLECT {
@@ -480,6 +520,11 @@ workflow {
 
     // STEP 07: CPG_TOOLS — haplotagged BAM → CpG methylation
     cpg_out = CPG_TOOLS(hiphase_out.haplotagged_bam)
+
+    // STEP 07b: METHBAT — same haplotagged BAM, runs alongside CPG_TOOLS
+    if (params.run_methbat) {
+        METHBAT(hiphase_out.haplotagged_bam)
+    }
 
     // Recompute alignment statistics for every entry route. Wait for CpG too.
     ch_qc_script = Channel.value(file("${projectDir}/scripts/qc_summary.py", checkIfExists: true))

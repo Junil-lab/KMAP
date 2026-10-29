@@ -10,6 +10,7 @@ PBLONGREADWGS/containers/*.sif
 PBLONGREADWGS/resources/ref/*
 !PBLONGREADWGS/resources/ref/sex/
 !PBLONGREADWGS/resources/ref/trgt/
+!PBLONGREADWGS/resources/ref/methbat/
 
 # Pipeline outputs
 results/

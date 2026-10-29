@@ -42,6 +42,7 @@ flowchart LR
     D --> F
     E --> F
     F --> G[07 pb-CpG-tools<br/>hap1 / hap2 methylation]
+    F --> M[07b MethBat<br/>5mC / 5hmC / 6mA pileup]
     F --> H[(phased VCFs<br/>haplotagged BAM)]
     G --> Q[QC summary]
 ```
@@ -55,6 +56,7 @@ flowchart LR
 | Tandem repeats | TRGT (adotto + STRchive catalog, 937k loci) | 5.0.0 |
 | Phasing | HiPhase | 1.6.0 |
 | CpG methylation | pb-CpG-tools | 3.0.0 |
+| Methylation pileup + CpG island profile | MethBat | 1.1.0 |
 | Utilities | samtools / bcftools | 1.23.1 |
 
 **Sex-aware calling** — the samplesheet `sex` column switches DeepVariant haploid calling, Sawfish expected copy number and TRGT karyotype together. On HG002 (XY): 0 heterozygous DeepVariant calls on chrX outside the PARs, and haploid TRGT and Sawfish genotypes on chrX/chrY.
@@ -73,6 +75,7 @@ cd KMAP_Pipeline/PBLONGREADWGS
 wget -O containers/kmap_pbwgs_v2.sif \
   https://github.com/hi6167579-droid/KMAP_Pipeline/releases/download/v1.0.0/kmap_pbwgs_v1.0.0.sif
 singularity pull containers/deepvariant_1.9.0-gpu.sif docker://google/deepvariant:1.9.0-gpu
+singularity pull containers/methbat_1.1.0.sif docker://quay.io/biocontainers/methbat:1.1.0--h9ee0642_0
 
 # reference: see PBLONGREADWGS/README.md → Reference genome
 bash setup.sh            # installs Java 17 if needed, checks everything
