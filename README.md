@@ -19,8 +19,8 @@
 
 | Module | Data | What it does | Status |
 |---|---|---|---|
-| [**PBLONGREADWGS**](PBLONGREADWGS/) | PacBio HiFi WGS (BAM) | alignment → SNV/indel → SV → tandem repeats → joint phasing → CpG methylation, sex-aware on chrX/chrY | ✅ **v1.0.0** — tested on HG002 |
-| [**PBLONGREADRNA**](PBLONGREADRNA/) | PacBio Iso-Seq / Kinnex | pbmm2 → IsoQuant / isocall / FLAIR → SQANTI3 + ORF; sample/cohort modes | available — see module validation report |
+| [**PBLONGREADWGS**](PBLONGREADWGS/) | PacBio HiFi WGS (BAM) | alignment → SNV/indel → SV → tandem repeats → joint phasing → CpG methylation, sex-aware on chrX/chrY | ✅ available |
+| [**PBLONGREADRNA**](PBLONGREADRNA/) | PacBio Iso-Seq / Kinnex | pbmm2 → IsoQuant / isocall / FLAIR → SQANTI3 + ORF; sample/cohort modes | ✅ available |
 | [**SCRNA**](SCRNA/scRNAseq_QC_pipeline/) | 10x Genomics scRNA-seq (FASTQ) | Cell Ranger → CellBender → QC → SOLO doublet removal | ✅ available |
 
 Every module follows the same pattern: **one samplesheet in, one command to run, all tools inside Singularity containers**, so results do not depend on what is installed on the server.
