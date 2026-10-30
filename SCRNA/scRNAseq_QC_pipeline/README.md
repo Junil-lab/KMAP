@@ -34,8 +34,8 @@ SOLO model settings are in `configs/solo_params.json` (`n_hidden` 384, `n_latent
 
 | Item | Location | Notes |
 |---|---|---|
-| Java 17+ | system | needed by Nextflow; `run.sh` also looks in `/usr/lib/jvm`, `/opt`, `/usr/local` |
-| Nextflow | `./nextflow`, `../nextflow` or `PATH` | the WGS folder's `nextflow` wrapper also works |
+| Java 17+ | system, or **installed automatically** by `setup.sh` | Nextflow 26 needs Java 17+. If missing, `setup.sh` downloads OpenJDK 17 into `.java17/` and `run.sh` uses it |
+| Nextflow | **in this folder** (`./nextflow`, version 26.04.3) | downloads itself on first use |
 | Singularity / Apptainer | system | |
 | GPU (recommended) | – | CellBender and SOLO; without one use `--use_gpu false` (much slower) |
 | `containers/cellranger.sif` | build from the 10x tarball (see [Containers](#containers)) | Cell Ranger needs a license agreement, so it cannot be redistributed |
@@ -92,7 +92,7 @@ git clone https://github.com/hi6167579-droid/KMAP_Pipeline.git
 cd KMAP_Pipeline/SCRNA/scRNAseq_QC_pipeline
 
 # containers (see Containers above), then
-bash setup.sh          # checks Java / nextflow / Singularity / SIFs; "All checks passed." means ready
+bash setup.sh          # installs Java 17 if needed; checks nextflow / Singularity / SIFs; "All checks passed." means ready
 ```
 
 ### 2. Write a samplesheet

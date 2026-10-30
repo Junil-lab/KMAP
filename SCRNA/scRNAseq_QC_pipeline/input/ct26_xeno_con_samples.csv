@@ -1,2 +1,0 @@
-sample_id,fastqs,sample,transcriptome,start_step,raw_h5,cellbender_h5,expected_cells,chemistry,create_bam,include_introns,localmem_gb,cuda_device,cellbender_expected_cells,cellbender_total_droplets_included,expected_doublet_rate,expected_doublets
-CT26_xeno_con,/home/Data_Drive_8TB_2/CRC_2026/KRAS_project/0.Raw_data/BALBc_CT26_scTumor_MRTX_12h_36h_scRNA-seq/CT26_xeno_con,CT26_xeno_con,/home/Data_Drive_8TB_2/CRC_2026/KRAS_project/reference/refdata-gex-GRCm39-2024-A,cellranger,,,,auto,false,false,160,0,,,,
