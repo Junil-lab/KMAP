@@ -132,7 +132,7 @@ def main():
     p = sub.add_parser('install')
     p.add_argument('--destination', type=Path, required=True)
     p.add_argument('--assets-dir', type=Path)
-    p.add_argument('--repo', default='hi6167579-droid/KMAP_Pipeline')
+    p.add_argument('--repo', default='Junil-lab/KMAP')
     p.add_argument('--tag')
     args = parser.parse_args()
     try:

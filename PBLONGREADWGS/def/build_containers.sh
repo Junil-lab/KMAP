@@ -9,7 +9,7 @@
 #   bash build_containers.sh methbat       # pull the MethBat container only
 #
 # The prebuilt main container is also available from the GitHub Release:
-#   https://github.com/hi6167579-droid/KMAP_Pipeline/releases/tag/v1.0.0
+#   https://github.com/Junil-lab/KMAP/releases/tag/v1.0.0
 #
 # BUILD_DIR: where the image is built (default: $TMPDIR or /tmp).
 #   --fakeroot builds cannot write to most NFS mounts, so use a local disk.

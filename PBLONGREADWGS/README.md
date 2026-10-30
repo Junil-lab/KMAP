@@ -38,7 +38,7 @@ For cell lines whose karyotype differs from the donor's sex (e.g. a line that lo
 | Java 17+ | system, or **installed automatically** by `setup.sh` | Nextflow 26 needs Java 17+. If missing, `setup.sh` downloads OpenJDK 17 into `.java17/` and `run.sh` uses it |
 | Singularity / Apptainer | system | |
 | GPU (optional) | – | for DeepVariant; without one use `--use_gpu false` |
-| `containers/kmap_pbwgs_v2.sif` | [GitHub Release v1.0.0](https://github.com/hi6167579-droid/KMAP_Pipeline/releases/tag/v1.0.0) | pbmm2, jasmine, sawfish, trgt, hiphase, pb-CpG-tools, samtools/bcftools — can be built with `def/build_containers.sh` |
+| `containers/kmap_pbwgs_v2.sif` | [GitHub Release v1.0.0](https://github.com/Junil-lab/KMAP/releases/tag/v1.0.0) | pbmm2, jasmine, sawfish, trgt, hiphase, pb-CpG-tools, samtools/bcftools — can be built with `def/build_containers.sh` |
 | `containers/deepvariant_1.9.0-gpu.sif` | Docker Hub | `google/deepvariant:1.9.0-gpu` |
 | `containers/methbat_1.1.0.sif` | bioconda (quay.io) | `quay.io/biocontainers/methbat:1.1.0--h9ee0642_0` (7 MB) |
 | `resources/ref/GRCh38_no_alt_analysis_set.fna` (+ `.fai`, `.mmi`) | NCBI (see [Reference genome](#reference-genome)) | ~3.1 GB + 5.8 GB `.mmi` |
@@ -73,12 +73,12 @@ Symlinked references are fine: `run.sh` finds the real location of every link in
 ### 1. Check the environment (once)
 
 ```bash
-git clone https://github.com/hi6167579-droid/KMAP_Pipeline.git
-cd KMAP_Pipeline/PBLONGREADWGS
+git clone https://github.com/Junil-lab/KMAP.git
+cd KMAP/PBLONGREADWGS
 
 # containers
 wget -O containers/kmap_pbwgs_v2.sif \
-  https://github.com/hi6167579-droid/KMAP_Pipeline/releases/download/v1.0.0/kmap_pbwgs_v1.0.0.sif
+  https://github.com/Junil-lab/KMAP/releases/download/v1.0.0/kmap_pbwgs_v1.0.0.sif
 singularity pull containers/deepvariant_1.9.0-gpu.sif docker://google/deepvariant:1.9.0-gpu
 singularity pull containers/methbat_1.1.0.sif docker://quay.io/biocontainers/methbat:1.1.0--h9ee0642_0
 

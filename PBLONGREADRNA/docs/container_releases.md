@@ -24,7 +24,7 @@ bash setup.sh --download-containers --release-tag isoseq-v1.0.0
 `isoseq-v1.0.0` is the dedicated KMAP RNA container release tag.
 The existing WGS `v1.0.0` images do not contain this RNA workflow. An explicit
 release tag is required to avoid picking another module's latest release.
-The default repository is `hi6167579-droid/KMAP_Pipeline` (`--release-repo` can
+The default repository is `Junil-lab/KMAP` (`--release-repo` can
 change it). Automatic KMAP release downloads support public releases.
 
 For an already downloaded main/discovery asset folder:
