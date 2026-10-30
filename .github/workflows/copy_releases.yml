@@ -39,7 +39,7 @@ jobs:
                 echo "ok  ${name} (${size} bytes)"
               done
             if [ -f "assets/${tag}/SHA256SUMS" ]; then
-              (cd "assets/${tag}" && sed 's#containers/##' SHA256SUMS | sha256sum -c -)
+              (cd "assets/${tag}" && sed "s#containers/##" SHA256SUMS | sha256sum -c --ignore-missing -)
             fi
 
             title=$(gh release view "${tag}" --repo "${SRC}" --json name --jq .name)
