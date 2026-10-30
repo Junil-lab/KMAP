@@ -114,8 +114,10 @@ fi
 
 if [[ ! -f "${PIPELINE_DIR}/containers/scrnaseq_qc.sif" ]]; then
     echo ""
-    echo "  For fully containerized execution, build/pull containers with:"
-    echo "    bash ${PIPELINE_DIR}/def/build_containers.sh all"
+    echo "  Download the prebuilt QC container (GitHub Release, parts joined and checked):"
+    echo "    bash ${PIPELINE_DIR}/def/fetch_qc_container.sh"
+    echo "  or build it from def/scrnaseq_qc.def:"
+    echo "    bash ${PIPELINE_DIR}/def/build_containers.sh qc"
     echo "  Current fallback execution profile:"
     echo "    bash run.sh --samplesheet input/samples.example.csv -profile local_conda"
 fi

@@ -40,10 +40,10 @@ SOLO model settings are in `configs/solo_params.json` (`n_hidden` 384, `n_latent
 | GPU (recommended) | – | CellBender and SOLO; without one use `--use_gpu false` (much slower) |
 | `containers/cellranger.sif` | build from the 10x tarball (see [Containers](#containers)) | Cell Ranger needs a license agreement, so it cannot be redistributed |
 | `containers/cellbender.sif` | Google Artifact Registry | `us.gcr.io/broad-dsde-methods/cellbender:latest` |
-| `containers/scrnaseq_qc.sif` | `def/scrnaseq_qc.def` | Scanpy + SOLO. Without it, `-profile local_conda` runs these steps from a conda environment |
+| `containers/scrnaseq_qc.sif` | GitHub Release `scrna-qc-v2.0.0` (`bash def/fetch_qc_container.sh`), or build with `def/scrnaseq_qc.def` | Scanpy 1.11.5, scvi-tools 1.4.0.post1, SOLO 1.2, PyTorch 2.9.0 (CUDA 12.8). 4.5 GB, stored as 3 parts in the release |
 | 10x transcriptome reference | 10x Genomics (see [Reference](#reference)) | not downloaded by the pipeline |
 
-> `def/scrnaseq_qc.def` currently copies an existing conda environment from the build host. On another server, build that environment first (Scanpy, scvi-tools, `solo-sc`) and point the def file to it, or use `-profile local_conda --qc_conda_env /path/to/env`.
+> `def/scrnaseq_qc.def` installs every package from public sources (PyPI, the PyTorch CUDA 12.8 index and the official calico/solo source at commit `d94baa3`), pinned to the versions the pipeline was validated with, so it builds on any server. On a 10x PBMC 1k test it gave results identical to the earlier lab image (same QC cells, HVGs, matrix values, doublet barcodes and scores).
 
 ### Containers
 
@@ -55,11 +55,17 @@ CELLRANGER_TARBALL=/path/to/cellranger-10.0.0.tar.gz bash def/build_containers.s
 CELLRANGER_DIR=/path/to/cellranger-10.0.0 bash def/build_containers.sh cellranger
 ```
 
+The QC container (Scanpy / SOLO) — download the prebuilt image:
+
+```bash
+bash def/fetch_qc_container.sh     # downloads 3 parts, checks SHA-256, joins them into containers/scrnaseq_qc.sif
+```
+
 The others:
 
 ```bash
 bash def/build_containers.sh cellbender
-bash def/build_containers.sh qc
+bash def/build_containers.sh qc     # optional: build the QC image yourself instead of downloading (~30 min)
 # or all three at once, with downloads/cellranger-10.0.0.tar.gz in place
 bash def/build_containers.sh all
 ```
