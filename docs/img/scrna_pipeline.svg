@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="1014" viewBox="0 0 1100 1014"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#475569"/></marker></defs><rect x="0" y="0" width="1100" height="1014" rx="10" fill="#ffffff" stroke="#d0d7de"/><rect x="910" y="20" width="170" height="76" fill="#ffffff" stroke="#e5e7eb"/>
+<rect x="922" y="32" width="14" height="14" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.5"/>
+<rect x="922" y="32" width="4" height="14" fill="#2a9d8f"/>
+<text x="944" y="43" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" fill="#4b5563" text-anchor="start">Pipeline step</text>
+<rect x="922" y="52" width="14" height="14" fill="#ffffff" stroke="#ee8a2a" stroke-width="1.5"/>
+<rect x="922" y="52" width="4" height="14" fill="#ee8a2a"/>
+<text x="944" y="63" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" fill="#4b5563" text-anchor="start">Final output</text>
+<rect x="922" y="72" width="14" height="14" fill="#ffffff" stroke="#6b7280" stroke-width="1.5"/>
+<rect x="922" y="72" width="4" height="14" fill="#6b7280"/>
+<text x="944" y="83" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" fill="#4b5563" text-anchor="start">Input / reference</text>
+<rect x="310.0" y="24" width="320" height="59" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.6"/>
+<rect x="310.0" y="24" width="6" height="59" fill="#2a9d8f"/>
+<text x="326.0" y="40" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f7a6f" text-anchor="start">00</text>
+<text x="326.0" y="58" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">FASTQ directory</text>
+<text x="326.0" y="75" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">sample_R1 / R2 / I1 / I2 fastq.gz</text>
+<rect x="30.0" y="98" width="270" height="74" fill="#ffffff" stroke="#6b7280" stroke-width="1.6"/>
+<rect x="30.0" y="98" width="6" height="74" fill="#6b7280"/>
+<text x="46.0" y="114" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#6b7280" text-anchor="start">ref</text>
+<text x="46.0" y="132" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">10x reference</text>
+<text x="46.0" y="149" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#4b5563" text-anchor="start">user-supplied transcriptome</text>
+<text x="46.0" y="164" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#4b5563" text-anchor="start">refdata-gex-GRCh38-2024-A</text>
+<path d="M 470 83 L 470 98" fill="none" stroke="#475569" stroke-width="1.5"/>
+<rect x="427.0" y="98" width="86.0" height="22" rx="11" fill="#eef2f7" stroke="#cbd5e1"/>
+<text x="470" y="113" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#334155" text-anchor="middle">cellranger</text>
+<path d="M 470 120 L 470 143" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="310.0" y="145" width="320" height="59" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.6"/>
+<rect x="310.0" y="145" width="6" height="59" fill="#2a9d8f"/>
+<text x="326.0" y="161" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f7a6f" text-anchor="start">01</text>
+<text x="326.0" y="179" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Cell Ranger count</text>
+<text x="326.0" y="196" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">raw_feature_bc_matrix.h5</text>
+<path d="M 470 204 L 470 219" fill="none" stroke="#475569" stroke-width="1.5"/>
+<rect x="427.0" y="219" width="86.0" height="22" rx="11" fill="#eef2f7" stroke="#cbd5e1"/>
+<text x="470" y="234" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#334155" text-anchor="middle">CellBender</text>
+<path d="M 470 241 L 470 264" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="310.0" y="266" width="320" height="59" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.6"/>
+<rect x="310.0" y="266" width="6" height="59" fill="#2a9d8f"/>
+<text x="326.0" y="282" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f7a6f" text-anchor="start">02</text>
+<text x="326.0" y="300" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Remove background</text>
+<text x="326.0" y="317" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">{sample}.cellbender_cleaned.h5</text>
+<path d="M 470 325 L 470 340" fill="none" stroke="#475569" stroke-width="1.5"/>
+<rect x="441.0" y="340" width="58.0" height="22" rx="11" fill="#eef2f7" stroke="#cbd5e1"/>
+<text x="470" y="355" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#334155" text-anchor="middle">Scanpy</text>
+<path d="M 470 362 L 470 385" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="310.0" y="387" width="320" height="74" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.6"/>
+<rect x="310.0" y="387" width="6" height="74" fill="#2a9d8f"/>
+<text x="326.0" y="403" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f7a6f" text-anchor="start">03</text>
+<text x="326.0" y="421" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Scanpy QC for SOLO</text>
+<text x="326.0" y="438" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">cell QC, MT filter off by default; all genes kept</text>
+<text x="326.0" y="453" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">full.h5ad + hvg2000.h5ad + QC CSV</text>
+<path d="M 470 461 L 470 476" fill="none" stroke="#475569" stroke-width="1.5"/>
+<rect x="448.0" y="476" width="44.0" height="22" rx="11" fill="#eef2f7" stroke="#cbd5e1"/>
+<text x="470" y="491" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#334155" text-anchor="middle">SOLO</text>
+<path d="M 470 498 L 470 521" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="310.0" y="523" width="320" height="59" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.6"/>
+<rect x="310.0" y="523" width="6" height="59" fill="#2a9d8f"/>
+<text x="326.0" y="539" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f7a6f" text-anchor="start">04</text>
+<text x="326.0" y="557" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">SOLO doublet scoring</text>
+<text x="326.0" y="574" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">{sample}.solo/soloed.h5ad (scores corrected)</text>
+<path d="M 470 582 L 470 597" fill="none" stroke="#475569" stroke-width="1.5"/>
+<rect x="409.5" y="597" width="121.0" height="22" rx="11" fill="#eef2f7" stroke="#cbd5e1"/>
+<text x="470" y="612" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#334155" text-anchor="middle">filter_singlets</text>
+<path d="M 470 619 L 470 642" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="310.0" y="644" width="320" height="59" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.6"/>
+<rect x="310.0" y="644" width="6" height="59" fill="#2a9d8f"/>
+<text x="326.0" y="660" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f7a6f" text-anchor="start">05</text>
+<text x="326.0" y="678" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Filter SOLO singlets</text>
+<text x="326.0" y="695" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">annotated full + singlet-only H5AD</text>
+<path d="M 470 703 L 470 718" fill="none" stroke="#475569" stroke-width="1.5"/>
+<rect x="434.0" y="718" width="72.0" height="22" rx="11" fill="#eef2f7" stroke="#cbd5e1"/>
+<text x="470" y="733" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#334155" text-anchor="middle">merge_qc</text>
+<path d="M 470 740 L 470 763" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="310.0" y="765" width="320" height="59" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.6"/>
+<rect x="310.0" y="765" width="6" height="59" fill="#2a9d8f"/>
+<text x="326.0" y="781" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f7a6f" text-anchor="start">06</text>
+<text x="326.0" y="799" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">QC summary merge</text>
+<text x="326.0" y="816" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">QC metrics + SOLO summary</text>
+<path d="M 300.0 109 L 425 109" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="720.0" y="200" width="300" height="59" fill="#ffffff" stroke="#6b7280" stroke-width="1.6"/>
+<rect x="720.0" y="200" width="6" height="59" fill="#6b7280"/>
+<text x="736.0" y="216" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#6b7280" text-anchor="start">start_step=cellbender</text>
+<text x="736.0" y="234" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Raw matrix H5</text>
+<text x="736.0" y="251" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#4b5563" text-anchor="start">raw_feature_bc_matrix.h5</text>
+<path d="M 720.0 230 L 520 230" fill="none" stroke="#475569" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<rect x="720.0" y="321" width="300" height="59" fill="#ffffff" stroke="#6b7280" stroke-width="1.6"/>
+<rect x="720.0" y="321" width="6" height="59" fill="#6b7280"/>
+<text x="736.0" y="337" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#6b7280" text-anchor="start">start_step=qc</text>
+<text x="736.0" y="355" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">CellBender H5</text>
+<text x="736.0" y="372" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#4b5563" text-anchor="start">cellbender_cleaned.h5</text>
+<path d="M 720.0 351 L 505 351" fill="none" stroke="#475569" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<rect x="720.0" y="644" width="300" height="74" fill="#ffffff" stroke="#ee8a2a" stroke-width="1.6"/>
+<rect x="720.0" y="644" width="6" height="74" fill="#ee8a2a"/>
+<text x="736.0" y="660" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#c96a12" text-anchor="start">final</text>
+<text x="736.0" y="678" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Final cell-level H5ADs</text>
+<text x="736.0" y="695" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#c96a12" text-anchor="start">{sample}_qc_solo_annotated_full.h5ad</text>
+<text x="736.0" y="710" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#c96a12" text-anchor="start">{sample}_qc_solo_singlets_full.h5ad</text>
+<path d="M 630.0 673.5 L 720.0 673.5" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="720.0" y="765" width="300" height="59" fill="#ffffff" stroke="#ee8a2a" stroke-width="1.6"/>
+<rect x="720.0" y="765" width="6" height="59" fill="#ee8a2a"/>
+<text x="736.0" y="781" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#c96a12" text-anchor="start">final</text>
+<text x="736.0" y="799" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Final QC table</text>
+<text x="736.0" y="816" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#c96a12" text-anchor="start">scrnaseq_qc_summary.csv</text>
+<path d="M 630.0 794.5 L 720.0 794.5" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="30" y="864" width="335" height="128" fill="#ffffff" stroke="#e5e7eb"/>
+<rect x="30" y="864" width="5" height="128" fill="#6b7280"/>
+<text x="50" y="890" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Required inputs</text>
+<text x="50" y="914" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" fill="#4b5563" text-anchor="start">• 10x FASTQ directory</text>
+<text x="50" y="933" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" fill="#4b5563" text-anchor="start">• 10x Cell Ranger reference</text>
+<text x="50" y="952" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" fill="#4b5563" text-anchor="start">• samplesheet CSV (sample_id, fastqs,</text>
+<text x="50" y="971" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" fill="#4b5563" text-anchor="start">   sample, transcriptome, start_step)</text>
+<rect x="382" y="864" width="335" height="128" fill="#ffffff" stroke="#e5e7eb"/>
+<rect x="382" y="864" width="5" height="128" fill="#2a9d8f"/>
+<text x="402" y="890" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Main processing</text>
+<text x="402" y="914" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" fill="#4b5563" text-anchor="start">• Cell Ranger count</text>
+<text x="402" y="933" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" fill="#4b5563" text-anchor="start">• CellBender ambient RNA correction</text>
+<text x="402" y="952" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" fill="#4b5563" text-anchor="start">• Scanpy QC and HVG selection</text>
+<text x="402" y="971" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" fill="#4b5563" text-anchor="start">• SOLO doublet detection and filtering</text>
+<rect x="734" y="864" width="335" height="128" fill="#ffffff" stroke="#e5e7eb"/>
+<rect x="734" y="864" width="5" height="128" fill="#ee8a2a"/>
+<text x="754" y="890" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Key final outputs</text>
+<text x="754" y="914" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" fill="#4b5563" text-anchor="start">• SOLO-annotated full H5AD</text>
+<text x="754" y="933" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" fill="#4b5563" text-anchor="start">• SOLO singlet-only full H5AD</text>
+<text x="754" y="952" font-family="Helvetica, Arial, sans-serif" font-size="12.5" font-weight="normal" fill="#4b5563" text-anchor="start">• Integrated QC summary CSV</text></svg>
