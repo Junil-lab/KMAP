@@ -23,35 +23,34 @@ if [[ -n "${JAVA_HOME:-}" && ! -x "${JAVA_HOME}/bin/java" ]]; then
 fi
 unset JAVA_CMD
 
+# Nextflow 26 needs Java 17+. If none is found, OpenJDK 17 (Eclipse Temurin)
+# is downloaded into <pipeline_dir>/.java17 — run.sh uses it automatically.
 echo "[1] Java 17+"
-java17_ok() {
-    "$1" -version 2>&1 | grep -qE 'version "(1[7-9]|2[0-6])'
-}
-
-if java17_ok java; then
-    check "$(java -version 2>&1 | head -1)"
+JAVA_LOCAL="${PIPELINE_DIR}/.java17"
+java17_ok() { "$1" -version 2>&1 | grep -qE 'version "(1[7-9]|[2-9][0-9])'; }
+if [[ -x "${JAVA_LOCAL}/bin/java" ]] && java17_ok "${JAVA_LOCAL}/bin/java"; then
+    check "local $("${JAVA_LOCAL}/bin/java" -version 2>&1 | head -1)  (${JAVA_LOCAL})"
+elif command -v java >/dev/null 2>&1 && java17_ok java; then
+    check "system $(java -version 2>&1 | head -1)"
 else
-    JAVA_CANDIDATE=""
-    for candidate in \
-        /home/Data_Drive_8TB_2/CluVar/tool/jdk-17.0.12/bin/java \
-        /home/Data_Drive_8TB_2/CluVar/tool/*/bin/java \
-        /usr/lib/jvm/*/bin/java \
-        /opt/*/bin/java \
-        /usr/local/*/bin/java \
-        "${JAVA_HOME:-}/bin/java"; do
-        if [[ -x "${candidate}" ]] && java17_ok "${candidate}"; then
-            JAVA_CANDIDATE="${candidate}"
-            break
-        fi
-    done
-
-    if [[ -n "${JAVA_CANDIDATE}" ]]; then
-        export JAVA_HOME="$(dirname "$(dirname "${JAVA_CANDIDATE}")")"
-        export PATH="${JAVA_HOME}/bin:${PATH}"
-        check "$("${JAVA_CANDIDATE}" -version 2>&1 | head -1)"
+    warn "Java 17+ not found — downloading OpenJDK 17 into ${JAVA_LOCAL}"
+    case "$(uname -m)" in
+        x86_64)  ARCH=x64 ;;
+        aarch64) ARCH=aarch64 ;;
+        *)       ARCH="" ;;
+    esac
+    URL="https://api.adoptium.net/v3/binary/latest/17/ga/linux/${ARCH}/jdk/hotspot/normal/eclipse"
+    if [[ -n "${ARCH}" ]] && mkdir -p "${JAVA_LOCAL}" \
+        && curl -fsSL "${URL}" | tar -xz -C "${JAVA_LOCAL}" --strip-components=1 \
+        && java17_ok "${JAVA_LOCAL}/bin/java"; then
+        check "installed $("${JAVA_LOCAL}/bin/java" -version 2>&1 | head -1)  (${JAVA_LOCAL})"
     else
-        fail "Java 17+ is required by the bundled/current Nextflow binary."
+        rm -rf "${JAVA_LOCAL}"
+        fail "Java 17 download failed. Install it manually: conda create -p ${JAVA_LOCAL} -c conda-forge openjdk=17"
     fi
+fi
+if [[ -x "${JAVA_LOCAL}/bin/java" ]]; then
+    export JAVA_HOME="${JAVA_LOCAL}"; export PATH="${JAVA_HOME}/bin:${PATH}"
 fi
 
 echo ""
@@ -79,7 +78,7 @@ echo "[4] Cell Ranger"
 CELLRANGER_SIF="${CELLRANGER_SIF:-${PIPELINE_DIR}/containers/cellranger.sif}"
 CELLRANGER_BIN="${CELLRANGER_BIN:-}"
 if [[ -f "${CELLRANGER_SIF}" ]]; then
-    check "cellranger.sif ($(du -sh "${CELLRANGER_SIF}" | cut -f1))"
+    check "cellranger.sif ($(du -shL "${CELLRANGER_SIF}" | cut -f1))"
     singularity exec "${CELLRANGER_SIF}" cellranger --version 2>/dev/null | head -1 || true
 elif [[ -n "${CELLRANGER_BIN}" && -x "${CELLRANGER_BIN}" ]]; then
     warn "cellranger.sif missing; host fallback available with -profile local,host_cellranger"
@@ -92,24 +91,24 @@ fi
 echo ""
 echo "[5] Containers"
 if [[ -f "${PIPELINE_DIR}/containers/cellranger.sif" ]]; then
-    check "cellranger.sif ($(du -sh "${PIPELINE_DIR}/containers/cellranger.sif" | cut -f1))"
+    check "cellranger.sif ($(du -shL "${PIPELINE_DIR}/containers/cellranger.sif" | cut -f1))"
 else
     fail "Missing cellranger.sif"
 fi
 
 if [[ -f "${PIPELINE_DIR}/containers/cellbender.sif" ]]; then
-    check "cellbender.sif ($(du -sh "${PIPELINE_DIR}/containers/cellbender.sif" | cut -f1))"
+    check "cellbender.sif ($(du -shL "${PIPELINE_DIR}/containers/cellbender.sif" | cut -f1))"
 else
     fail "Missing cellbender.sif"
 fi
 
-QC_CONDA_ENV="${QC_CONDA_ENV:-/home/Data_Drive_8TB/cwonkim99/.conda/envs/solo}"
+QC_CONDA_ENV="${QC_CONDA_ENV:-}"   # optional: an existing conda env for -profile local_conda
 if [[ -f "${PIPELINE_DIR}/containers/scrnaseq_qc.sif" ]]; then
-    check "scrnaseq_qc.sif ($(du -sh "${PIPELINE_DIR}/containers/scrnaseq_qc.sif" | cut -f1))"
-elif [[ -x "${QC_CONDA_ENV}/bin/solo" && -x "${QC_CONDA_ENV}/bin/python" ]]; then
-    check "scrnaseq_qc.sif missing, using local_conda fallback: ${QC_CONDA_ENV}"
+    check "scrnaseq_qc.sif ($(du -shL "${PIPELINE_DIR}/containers/scrnaseq_qc.sif" | cut -f1))"
+elif [[ -n "${QC_CONDA_ENV}" && -x "${QC_CONDA_ENV}/bin/solo" && -x "${QC_CONDA_ENV}/bin/python" ]]; then
+    warn "scrnaseq_qc.sif missing; conda env usable with -profile local_conda --qc_conda_env ${QC_CONDA_ENV}"
 else
-    fail "Missing scrnaseq_qc.sif and no usable QC conda env at ${QC_CONDA_ENV}"
+    fail "Missing scrnaseq_qc.sif"
 fi
 
 if [[ ! -f "${PIPELINE_DIR}/containers/scrnaseq_qc.sif" ]]; then
@@ -118,8 +117,8 @@ if [[ ! -f "${PIPELINE_DIR}/containers/scrnaseq_qc.sif" ]]; then
     echo "    bash ${PIPELINE_DIR}/def/fetch_qc_container.sh"
     echo "  or build it from def/scrnaseq_qc.def:"
     echo "    bash ${PIPELINE_DIR}/def/build_containers.sh qc"
-    echo "  Current fallback execution profile:"
-    echo "    bash run.sh --samplesheet input/samples.example.csv -profile local_conda"
+    echo "  Or run Scanpy / SOLO from an existing conda environment:"
+    echo "    bash run.sh --samplesheet input/samples.example.csv -profile local_conda --qc_conda_env /path/to/env"
 fi
 
 echo ""

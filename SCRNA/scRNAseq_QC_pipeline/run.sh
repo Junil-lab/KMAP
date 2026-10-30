@@ -31,14 +31,18 @@ fi
 unset JAVA_CMD
 
 java17_ok() {
-    "$1" -version 2>&1 | grep -qE 'version "(1[7-9]|2[0-6])'
+    "$1" -version 2>&1 | grep -qE 'version "(1[7-9]|[2-9][0-9])'
 }
+
+# Java 17+ — <pipeline_dir>/.java17 (installed by setup.sh) first, then the system java
+if [[ -x "${PIPELINE_DIR}/.java17/bin/java" ]]; then
+    export JAVA_HOME="${PIPELINE_DIR}/.java17"
+    export PATH="${JAVA_HOME}/bin:${PATH}"
+fi
 
 if ! java17_ok java; then
     JAVA_CANDIDATE=""
     for candidate in \
-        /home/Data_Drive_8TB_2/CluVar/tool/jdk-17.0.12/bin/java \
-        /home/Data_Drive_8TB_2/CluVar/tool/*/bin/java \
         /usr/lib/jvm/*/bin/java \
         /opt/*/bin/java \
         /usr/local/*/bin/java \
@@ -54,7 +58,7 @@ if ! java17_ok java; then
         export PATH="${JAVA_HOME}/bin:${PATH}"
     else
         echo "[ERROR] Java 17+ is required by this Nextflow binary." >&2
-        echo "        Install OpenJDK 17 or set JAVA_HOME to a valid Java 17+ directory." >&2
+        echo "        Run: bash setup.sh   (installs OpenJDK 17 into .java17/)" >&2
         exit 1
     fi
 fi
@@ -146,11 +150,15 @@ fi
 
 mkdir -p "${PIPELINE_DIR}/containers"
 
-if [[ "${PROFILE_SET}" = "false" && ! -f "${PIPELINE_DIR}/containers/scrnaseq_qc.sif" ]]; then
-    DEFAULT_QC_CONDA="/home/Data_Drive_8TB/cwonkim99/.conda/envs/solo"
-    if [[ -x "${DEFAULT_QC_CONDA}/bin/solo" && -x "${DEFAULT_QC_CONDA}/bin/python" ]]; then
-        PROFILE="local_conda"
+if [[ "${PROFILE}" == *"local_conda"* ]]; then
+    if [[ " ${EXTRA_ARGS[*]} " != *" --qc_conda_env "* ]]; then
+        echo "[ERROR] -profile local_conda needs --qc_conda_env /path/to/conda_env (with scanpy, scvi-tools and solo)" >&2
+        exit 2
     fi
+elif [[ ! -f "${PIPELINE_DIR}/containers/scrnaseq_qc.sif" && " ${EXTRA_ARGS[*]} " != *" --qc_sif "* ]]; then
+    echo "[ERROR] Missing QC container: ${PIPELINE_DIR}/containers/scrnaseq_qc.sif" >&2
+    echo "        Download it with: bash def/fetch_qc_container.sh" >&2
+    exit 2
 fi
 
 if [[ "${PROFILE}" != *"host_cellranger"* && ! -f "${PIPELINE_DIR}/containers/cellranger.sif" ]]; then

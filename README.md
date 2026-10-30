@@ -36,8 +36,8 @@ Every module follows the same pattern: **one samplesheet in, one command to run,
 | **Main container** | ✅ GitHub Release `v1.0.0` (`kmap_pbwgs_v1.0.0.sif`) | ✅ GitHub Release `scrna-qc-v2.0.0` (`scrnaseq_qc.sif`, 3 parts joined by `def/fetch_qc_container.sh`); also buildable from `def/scrnaseq_qc.def` | ✅ GitHub Release `isoseq-v1.0.0` (main + discovery) |
 | **Other containers** | ✅ DeepVariant (Docker Hub) and MethBat (quay.io) are pulled with one command | ⚠️ Cell Ranger: build from your own 10x download (license)<br>✅ CellBender pulled from its public image (tag `latest`, version not pinned) | ✅ official SQANTI3 image fetched by `setup.sh` |
 | **Reference** | GRCh38 from NCBI (+ index); TRGT catalog, sex BEDs and CpG islands are in the repo | 10x `refdata-gex` download | hg38 + GENCODE v45 (see `resources/ref/`) |
-| **Java 17 / Nextflow** | ✅ installed by `setup.sh` | ⚠️ Java 17 must already be installed | ✅ installed by `setup.sh` |
-| **Lab-server paths in the code** | ✅ none | ⚠️ fallback conda environment and Java paths of the lab server (`nextflow.config`, `run.sh`, `setup.sh`); not needed when the QC container is used | ✅ none |
+| **Java 17 / Nextflow** | ✅ installed by `setup.sh` | ✅ installed by `setup.sh` | ✅ installed by `setup.sh` |
+| **Lab-server paths in the code** | ✅ none | ✅ none | ✅ none |
 | **Example data** | ✅ HG002 chr20/X/Y (download script + expected outputs) | ❌ | ❌ |
 
 ---
