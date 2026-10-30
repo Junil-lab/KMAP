@@ -1,7 +1,7 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl = 2
 
-include { PBMM2; ISOQUANT } from './modules/core'
+include { PBMM2; ALIGNED_INPUT; ISOQUANT } from './modules/core'
 include { FLAIR_TRANSCRIPTOME; FLAIR_COMBINE } from './modules/flair'
 include { ISOCALL_PREP; ISOCALL_PROFILE; ISOCALL_MERGE as ISOCALL_SAMPLE_MERGE; ISOCALL_MERGE as ISOCALL_COHORT_MERGE; ISOCALL_CALL as ISOCALL_SAMPLE_CALL; ISOCALL_CALL as ISOCALL_COHORT_CALL } from './modules/isocall'
 include { SQANTI3; QC_COLLECT; QC_MERGE } from './modules/qc'
@@ -36,9 +36,19 @@ workflow {
     validation.waitForProcessOutput(validated_json, validation_errors)
     if (validation.exitValue() != 0) error validation_errors.toString().trim()
     def rows = new groovy.json.JsonSlurper().parseText(validated_json.toString())
+    // start_step: pbmm2 (FLNC BAM, default) or discovery (existing aligned BAM, pbmm2 skipped)
     def samples = rows.collect { row ->
-        [[id: row.sample_id.toString(), tissue: row.tissue.toString()], file(row.flnc_bam, checkIfExists: true)]
+        def meta = [id: row.sample_id.toString(), tissue: row.tissue.toString()]
+        def step = (row.start_step ?: 'pbmm2').toString()
+        step == 'discovery' ? [meta, file(row.aligned_bam, checkIfExists: true), step]
+                            : [meta, file(row.flnc_bam, checkIfExists: true), step]
     }
+    def to_align = samples.findAll { it[2] == 'pbmm2' }.collect { [it[0], it[1]] }
+    def pre_aligned = samples.findAll { it[2] == 'discovery' }.collect { meta, bam, step ->
+        def bai = file("${bam}.bai").exists() ? file("${bam}.bai") : file(bam.toString().replaceAll(/\.bam$/, '.bai'), checkIfExists: true)
+        [meta, bam, bai]
+    }
+    log.info "Start step: pbmm2 for ${to_align.size()} sample(s), discovery (aligned BAM) for ${pre_aligned.size()} sample(s)"
     def sample_ids = samples.collect { it[0].id }.sort()
     def mode = params.analysis_mode.toString().toLowerCase()
     if (!(mode in ['auto','single','multi','both']))
@@ -54,15 +64,17 @@ workflow {
     def cohort_base = [id: 'cohort', tissue: 'COHORT']
     def expected = samples.collectMany { row -> methods.findAll { it == 'isoquant' || do_sample }.collect { method -> qcKey(annotate(row[0], method)) } }
     if (do_cohort) expected.addAll(methods.findAll { it in ['isocall','flair'] }.collect { qcKey(annotate(cohort_base,it,'cohort',sample_ids)) })
-    ch_input = Channel.fromList(samples)
 
     def iq_gtfs = Channel.empty()
     def iq_flags = Channel.empty()
-    PBMM2(ch_input, genome, genome_index)
+    PBMM2(Channel.fromList(to_align), genome, genome_index)
+    ALIGNED_INPUT(Channel.fromList(pre_aligned))
+    ch_aligned = PBMM2.out.aligned_bam.mix(ALIGNED_INPUT.out.aligned_bam)
+    ch_flagstat = PBMM2.out.flagstat.mix(ALIGNED_INPUT.out.flagstat)
     if ('isoquant' in methods) {
-        ISOQUANT(PBMM2.out.aligned_bam, genome, genome_index, annotation)
+        ISOQUANT(ch_aligned, genome, genome_index, annotation)
         iq_gtfs = ISOQUANT.out.transcript_gtf.map { meta, gtf -> [annotate(meta,'isoquant'),gtf] }
-        iq_flags = PBMM2.out.flagstat.map { meta, flag ->
+        iq_flags = ch_flagstat.map { meta, flag ->
             def m = annotate(meta,'isoquant'); [qcKey(m),m,[flag]]
         }
     }
@@ -77,10 +89,10 @@ workflow {
     def isocall_cohort_flags = Channel.empty()
     if (methods.any { it in ['isocall','flair'] }) {
         if ('flair' in methods) {
-            FLAIR_TRANSCRIPTOME(PBMM2.out.aligned_bam, genome, genome_index, annotation)
+            FLAIR_TRANSCRIPTOME(ch_aligned, genome, genome_index, annotation)
             if (do_sample) {
                 flair_gtfs = FLAIR_TRANSCRIPTOME.out.models.map { meta, gtf, bed, fa, map -> [annotate(meta,'flair'),gtf] }
-                flair_flags = PBMM2.out.flagstat.map { meta, flag ->
+                flair_flags = ch_flagstat.map { meta, flag ->
                     def m = annotate(meta,'flair'); [qcKey(m),m,[flag]]
                 }
             }
@@ -91,7 +103,7 @@ workflow {
                 }
                 FLAIR_COMBINE(ch_flair_cohort)
                 flair_cohort_gtfs = FLAIR_COMBINE.out.models.map { meta,gtf,bed,fa -> [meta,gtf] }
-                flair_cohort_flags = PBMM2.out.flagstat.collect(flat:false).map { entries ->
+                flair_cohort_flags = ch_flagstat.collect(flat:false).map { entries ->
                     def m = annotate(cohort_base,'flair','cohort',sample_ids); [qcKey(m),m,entries.collect { it[1] }]
                 }
 
@@ -99,13 +111,13 @@ workflow {
         }
         if ('isocall' in methods) {
             ISOCALL_PREP(annotation)
-            ISOCALL_PROFILE(PBMM2.out.aligned_bam)
+            ISOCALL_PROFILE(ch_aligned)
             if (do_sample) {
                 ch_sample_profiles = ISOCALL_PROFILE.out.profile.map { meta, profile -> [annotate(meta,'isocall'),[profile]] }
                 ISOCALL_SAMPLE_MERGE(ch_sample_profiles)
                 ISOCALL_SAMPLE_CALL(ISOCALL_SAMPLE_MERGE.out.merged,ISOCALL_PREP.out.known,genome,genome_index)
                 isocall_gtfs = ISOCALL_SAMPLE_CALL.out.gtf
-                isocall_flags = PBMM2.out.flagstat.map { meta,flag ->
+                isocall_flags = ch_flagstat.map { meta,flag ->
                     def m = annotate(meta,'isocall'); [qcKey(m),m,[flag]]
                 }
             }
@@ -116,7 +128,7 @@ workflow {
                 ISOCALL_COHORT_MERGE(ch_cohort_profiles)
                 ISOCALL_COHORT_CALL(ISOCALL_COHORT_MERGE.out.merged,ISOCALL_PREP.out.known,genome,genome_index)
                 isocall_cohort_gtfs = ISOCALL_COHORT_CALL.out.gtf
-                isocall_cohort_flags = PBMM2.out.flagstat.collect(flat:false).map { entries ->
+                isocall_cohort_flags = ch_flagstat.collect(flat:false).map { entries ->
                     def m = annotate(cohort_base,'isocall','cohort',sample_ids); [qcKey(m),m,entries.collect { it[1] }]
                 }
             }

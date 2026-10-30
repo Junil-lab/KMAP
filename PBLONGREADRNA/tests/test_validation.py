@@ -34,6 +34,25 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual(result[0]['tissue'], 'kidney, "left"')
         self.assertEqual(result[0]['flnc_bam'], str(self.root/'reads.bam'))
 
+    def test_start_step_discovery_uses_aligned_bam(self):
+        (self.root/'aligned.bam').write_bytes(b'test'); (self.root/'aligned.bam.bai').write_bytes(b'i')
+        with self.sheet.open('w', newline='') as handle:
+            w = csv.writer(handle)
+            w.writerow(['sample_id', 'flnc_bam', 'tissue', 'start_step', 'aligned_bam'])
+            w.writerows([['A', 'reads.bam', 'x', '', ''], ['B', '', 'y', 'discovery', 'aligned.bam']])
+        result = module.validate(self.sheet)
+        self.assertEqual([r['start_step'] for r in result], ['pbmm2', 'discovery'])
+        self.assertEqual(result[1]['aligned_bam'], str(self.root/'aligned.bam'))
+
+    def test_discovery_without_index_or_bad_step_stops_run(self):
+        (self.root/'aligned.bam').write_bytes(b'test')
+        for step, bam, msg in [('discovery', 'aligned.bam', 'index not found'), ('sqanti3', 'aligned.bam', 'start_step must be')]:
+            with self.sheet.open('w', newline='') as handle:
+                w = csv.writer(handle)
+                w.writerow(['sample_id', 'flnc_bam', 'tissue', 'start_step', 'aligned_bam'])
+                w.writerow(['A', '', 'x', step, bam])
+            with self.assertRaisesRegex(ValueError, msg): module.validate(self.sheet)
+
     def test_duplicate_id_stops_run(self):
         self.write_sheet([['A','reads.bam','x'], ['A','reads.bam','y']])
         with self.assertRaisesRegex(ValueError, 'Duplicate'): module.validate(self.sheet)

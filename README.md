@@ -32,7 +32,7 @@ Every module follows the same pattern: **one samplesheet in, one command to run,
 | | PBLONGREADWGS | SCRNA | PBLONGREADRNA |
 |---|---|---|---|
 | **Input** | HiFi BAM | 10x FASTQ, raw H5 or CellBender H5 | FLNC BAM |
-| **Start from the middle** | `start_step`: jasmine / pbmm2 / deepvariant / hiphase | `start_step`: cellranger / cellbender / qc | – (choose callers with `--methods`) |
+| **Start from the middle** | `start_step`: jasmine / pbmm2 / deepvariant / hiphase | `start_step`: cellranger / cellbender / qc | `start_step`: pbmm2 / discovery (callers chosen with `--methods`) |
 | **Main container** | ✅ GitHub Release `v1.0.0` (`kmap_pbwgs_v1.0.0.sif`) | ✅ GitHub Release `scrna-qc-v2.0.0` (`scrnaseq_qc.sif`, 3 parts joined by `def/fetch_qc_container.sh`); also buildable from `def/scrnaseq_qc.def` | ✅ GitHub Release `isoseq-v1.0.0` (main + discovery) |
 | **Other containers** | ✅ DeepVariant (Docker Hub) and MethBat (quay.io) are pulled with one command | ⚠️ Cell Ranger: build from your own 10x download (license)<br>✅ CellBender pulled from its public image (tag `latest`, version not pinned) | ✅ official SQANTI3 image fetched by `setup.sh` |
 | **Reference** | GRCh38 from NCBI (+ index); TRGT catalog, sex BEDs and CpG islands are in the repo | 10x `refdata-gex` download | hg38 + GENCODE v45 (see `resources/ref/`) |

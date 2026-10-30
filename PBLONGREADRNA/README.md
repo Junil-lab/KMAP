@@ -10,6 +10,7 @@ A Nextflow (DSL2) + Singularity pipeline that takes one PacBio full-length non-c
 FLNC BAM (one BAM per sample; CCS, demultiplexing and FLNC preparation are upstream)
   │
   ├─ 01 PBMM2 (ISOSEQ)   alignment to hg38, once per sample, shared by all callers
+  │                      * skipped with start_step=discovery (existing aligned BAM)
   ├─ 02 discovery        IsoQuant  /  isocall profile → call  /  FLAIR transcriptome
   │     └─ cohort        isocall merge + call, FLAIR combine   * only with 2+ samples
   ├─ 03 SQANTI3          structural QC of every transcript set
@@ -94,16 +95,20 @@ bash setup.sh --download-containers --release-tag isoseq-v1.0.0   # installs Jav
 Copy `input/samples.example.csv` and fill it in.
 
 ```csv
-sample_id,flnc_bam,tissue
-SampleA,/data/SampleA/flnc.bam,lung
-SampleB,/data/SampleB/flnc.bam,kidney
+sample_id,flnc_bam,tissue,start_step,aligned_bam
+SampleA,/data/SampleA/flnc.bam,lung,pbmm2,
+SampleB,,kidney,discovery,/data/SampleB/SampleB.aligned.bam
 ```
 
 | Column | Value |
 |---|---|
 | `sample_id` | unique; letters, digits, `_`, `-`, `.`; starts with a letter or digit |
-| `flnc_bam` | FLNC BAM; relative paths are resolved from the CSV's folder |
+| `flnc_bam` | FLNC BAM (needed for `start_step=pbmm2`); relative paths are resolved from the CSV's folder |
 | `tissue` | free text; empty becomes `NA` |
+| `start_step` | optional. `pbmm2` — from the FLNC BAM (default)<br>`discovery` — skip pbmm2 and start IsoQuant / isocall / FLAIR from `aligned_bam` |
+| `aligned_bam` | for `start_step=discovery`: a coordinate-sorted BAM aligned to the same hg38 (e.g. `alignment/pbmm2/<id>.aligned.bam` of an earlier run) with its `.bai` next to it |
+
+The two optional columns can be left out; a three-column CSV (`sample_id,flnc_bam,tissue`) runs everything from pbmm2. Rows with different `start_step` values can be mixed in one CSV, and cohort analysis still uses all samples. To continue a run that stopped later (e.g. in SQANTI3), use `-resume`.
 
 Standard CSV quoting, UTF-8 BOM and Windows line endings are accepted.
 
@@ -149,6 +154,7 @@ Nextflow keeps every intermediate file in the work directory (`.nf_work/` or `$N
 | Folder | File | Values |
 |---|---|---|
 | `alignment/pbmm2` | aligned BAM + flagstat | FLNC reads aligned to hg38 (ISOSEQ preset) |
+| `alignment/input` | flagstat | `start_step=discovery` only: statistics of the aligned BAM you supplied (the BAM itself is not copied) |
 | `isoquant/discovery` | `*.transcript_models.gtf` | known + novel transcript models |
 | | `*.discovered_transcript_counts.tsv`, `*.discovered_transcript_tpm.tsv` | counts / TPM for the models above (`*.transcript_counts.tsv` / `*.transcript_tpm.tsv` are reference transcripts only) |
 | `isocall/{profile,discovery}` | per-sample profile, transcript GTF, count matrix | isocall's native counts |
@@ -173,6 +179,8 @@ bash tests/run_smoke.sh
 bash tests/run_selection_matrix.sh test_runs/smoke
 bash tests/run_single_example.sh test_runs/smoke
 ```
+
+`start_step=discovery` was checked on the smoke data (2026-10-30): starting both samples from their aligned BAMs, and mixing one aligned BAM with one FLNC BAM, both gave a QC summary identical to the full run from pbmm2.
 
 The smoke test builds a synthetic 100 kb reference and two samples with 408 FLNC reads each, and runs all three callers, cohort analysis, SQANTI3 / ORF / HTML, optional polyA / CAGE annotations and the sample-complete QC. The selection matrix checks all seven caller subsets in `single` mode, each cohort-capable caller in `multi`, and `multi` / `both` together. These are functional tests on synthetic reads, not biological accuracy or human-scale runtime tests.
 

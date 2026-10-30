@@ -23,6 +23,28 @@ process PBMM2 {
     """
 }
 
+// start_step=discovery: use an existing aligned BAM instead of running pbmm2
+process ALIGNED_INPUT {
+    tag "${meta.id}"
+    label 'low_mem'
+    container params.main_sif
+    publishDir { "${params.outdir}/samples/${meta.id}/alignment/input" }, mode: 'copy', pattern: '*.flagstat.txt'
+    input:
+    tuple val(meta), path(aligned_bam), path(aligned_bai)
+    output:
+    tuple val(meta), path(aligned_bam), path(aligned_bai), emit: aligned_bam
+    tuple val(meta), path("${meta.id}.flagstat.txt"), emit: flagstat
+    script:
+    """
+    samtools quickcheck ${quote(aligned_bam)}
+    if ! samtools view -H ${quote(aligned_bam)} | grep -q '^@HD.*SO:coordinate'; then
+        echo "${meta.id}: aligned_bam must be coordinate-sorted (pbmm2 align --sort or samtools sort)" >&2
+        exit 1
+    fi
+    samtools flagstat -@ ${task.cpus} ${quote(aligned_bam)} > ${meta.id}.flagstat.txt
+    """
+}
+
 process ISOQUANT {
     tag "${meta.id}"
     label 'high_mem'
