@@ -21,7 +21,7 @@
 |---|---|---|---|
 | [**PBLONGREADWGS**](PBLONGREADWGS/) | PacBio HiFi WGS (BAM) | alignment → SNV/indel → SV → tandem repeats → joint phasing → CpG methylation, sex-aware on chrX/chrY | ✅ available |
 | [**PBLONGREADRNA**](PBLONGREADRNA/) | PacBio Iso-Seq / Kinnex | pbmm2 → IsoQuant / isocall / FLAIR → SQANTI3 + ORF; sample/cohort modes | ✅ available |
-| [**SCRNA**](SCRNA/scRNAseq_QC_pipeline/) | 10x Genomics scRNA-seq (FASTQ) | Cell Ranger → CellBender → QC → SOLO doublet removal | ✅ available |
+| [**SCRNA**](SCRNA/) | 10x Genomics scRNA-seq (FASTQ) | Cell Ranger → CellBender → QC → SOLO doublet removal | ✅ available |
 
 Every module follows the same pattern: **one samplesheet in, one command to run, all tools inside Singularity containers**, so results do not depend on what is installed on the server.
 
@@ -92,7 +92,7 @@ Choose callers with `--methods isoquant,isocall,flair`; with more than one sampl
 | Doublet detection | SOLO (solo-sc) + scvi-tools | 1.2 + 1.4.0.post1 |
 | Deep learning backend | PyTorch | 2.9.0 (CUDA 12.8) |
 
-Mitochondrial filtering is off by default (`--mt_threshold 20` to enable); all input genes stay in the final H5AD and `.raw`. Details: [SCRNA/scRNAseq_QC_pipeline/README.md](SCRNA/scRNAseq_QC_pipeline/README.md).
+Mitochondrial filtering is off by default (`--mt_threshold 20` to enable); all input genes stay in the final H5AD and `.raw`. Details: [SCRNA/README.md](SCRNA/README.md).
 
 ---
 
@@ -132,9 +132,15 @@ KMAP/
 │   ├── def/                container recipes
 │   ├── resources/ref/      sex BEDs + TRGT catalog (GRCh38 FASTA downloaded separately)
 │   └── example/HG002_chr20XY/   test input script, expected outputs
-├── PBLONGREADRNA/          PacBio long-read RNA pipeline
-└── SCRNA/
-    └── scRNAseq_QC_pipeline/   10x scRNA-seq preprocessing and QC
+├── PBLONGREADRNA/          PacBio long-read RNA (Iso-Seq) pipeline
+│   ├── main.nf, modules/, nextflow.config, run.sh, setup.sh
+│   ├── def/                container recipes
+│   └── resources/ref/      reference notes (hg38 + GENCODE downloaded separately)
+├── SCRNA/                  10x scRNA-seq preprocessing and QC pipeline
+│   ├── main.nf, nextflow.config, run.sh, setup.sh
+│   ├── def/                container recipes + QC container download script
+│   └── scripts/            Scanpy QC, SOLO score correction, singlet filter, QC merge
+└── docs/img/               pipeline diagrams
 ```
 
 ## Documentation
@@ -142,6 +148,6 @@ KMAP/
 - [PBLONGREADWGS/README.md](PBLONGREADWGS/README.md) — requirements, samplesheet, options, every output file explained
 - [PBLONGREADWGS/example/HG002_chr20XY/](PBLONGREADWGS/example/HG002_chr20XY/) — step-by-step test run with expected results
 - [PBLONGREADRNA/README.md](PBLONGREADRNA/README.md) — tool selection, sample/cohort modes, SQANTI3 and ORF outputs
-- [SCRNA/scRNAseq_QC_pipeline/README.md](SCRNA/scRNAseq_QC_pipeline/README.md) — scRNA-seq workflow and QC defaults
+- [SCRNA/README.md](SCRNA/README.md) — scRNA-seq workflow and QC defaults
 - [Releases](https://github.com/Junil-lab/KMAP/releases) — prebuilt containers
 

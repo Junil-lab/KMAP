@@ -2,6 +2,8 @@
 
 A Nextflow (DSL2) + Singularity pipeline that takes one PacBio HiFi BAM per sample and runs alignment → SNV/indel → SV → tandem repeats → phasing → CpG methylation in one go. Reference: GRCh38 (`GRCh38_no_alt_analysis_set`).
 
+<p align="center"><img src="../docs/img/pblongreadwgs_pipeline.svg" alt="PBLONGREADWGS overview" width="900"></p>
+
 ## How it works
 
 ```
@@ -227,10 +229,6 @@ Memory: the largest step is DeepVariant (~31 GB peak in the test; up to 64 GB is
 | `qc_summary.csv` | | one row per sample: mapping rate, reads, SV count, phased variants, phase blocks, maximum chromosome NG50 |
 | `pipeline_info/` | | run time and memory per step (`trace.csv`, `timeline.html`, `report.html`) |
 
-## Example
-
-[example/HG002_chr20XY/](example/HG002_chr20XY/) is a small test on HG002 (XY, chr20 + chrX + chrY, ~3 h on 5 cores): a script that downloads the input BAM from PacBio's public data, step-by-step commands to run it, the expected numbers to compare your results with, and the reference outputs (except BAMs). Run it once after installing, before real samples.
-
 ## Notes
 
 - **Runtime**: HG002 chr20+X+Y (~5% of the genome) on 5 cores took 3 h 16 min, 76% of it DeepVariant. Give a whole-genome 30x run plenty of cores.
@@ -240,7 +238,13 @@ Memory: the largest step is DeepVariant (~31 GB peak in the test; up to 64 GB is
 - **Removed steps**: variant annotation (VEP, AnnotSV) and sTELLeR (TE detection) were removed in this version.
 - **Reference point**: the tool set mostly matches PacBio's official [HiFi-human-WGS-WDL](https://github.com/PacificBiosciences/HiFi-human-WGS-WDL) v4.0.0; versions here are DeepVariant 1.9.0 / TRGT 5.0.0 / HiPhase 1.6.0 / Sawfish 2.2.1 / pb-CpG-tools 3.0.0.
 
-## QC validation (2026-10-24)
+## Validation
+
+### HG002 example
+
+[example/HG002_chr20XY/](example/HG002_chr20XY/) is a small test on HG002 (XY, chr20 + chrX + chrY, ~3 h on 5 cores): a script that downloads the input BAM from PacBio's public data, step-by-step commands to run it, the expected numbers to compare your results with, and the reference outputs (except BAMs). Run it once after installing, before real samples.
+
+### QC checks (2026-10-24)
 
 QC is generated for every supported start step, including `deepvariant` and `hiphase`.
 Alignment statistics are recomputed from the BAM supplied to phasing; QC-passed and

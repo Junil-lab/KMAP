@@ -2,6 +2,8 @@
 
 A Nextflow (DSL2) + Singularity pipeline that takes 10x Genomics FASTQs per sample and runs Cell Ranger → CellBender → Scanpy QC → SOLO doublet detection in one go, ending with a QC-passed, singlet-only full-gene H5AD for each sample.
 
+<p align="center"><img src="../docs/img/scrna_pipeline.svg" alt="SCRNA overview" width="900"></p>
+
 ## How it works
 
 ```
@@ -30,6 +32,26 @@ You can also start later: from an existing raw matrix (`start_step=cellbender`) 
 
 SOLO model settings are in `configs/solo_params.json` (`n_hidden` 384, `n_latent` 64, `n_layers` 1, `cl_hidden` 128, `cl_layers` 1, `dropout_rate` 0.2, `learning_rate` 0.001, `valid_pct` 0.1, `batch_size` 128), following the [Calico SOLO](https://github.com/calico/solo) README.
 
+### Full input genes and AnnData.raw
+
+After cell QC (default `genes >= 200`, `counts >= 500`; plus `mt < 20%` if `--mt_threshold 20` is given) and **before any gene filtering**, the pipeline stores every input gene with `adata.raw = adata.copy()`. Here raw means the CellBender background-corrected counts used as input, not the uncorrected Cell Ranger counts.
+
+- `*_qc_full.h5ad`: cell QC only; all input genes in `.X`, `layers["counts"]` and `.raw`.
+- `*_qc_hvg*.h5ad`: the gene prefilter (`min_cells_gene`) and HVG selection are applied to this training copy only. `.X` / `layers["counts"]` hold the HVGs (used to train SOLO), `.raw` holds all input genes.
+- `*_qc_solo_annotated_full.h5ad` and `*_qc_solo_singlets_full.h5ad`: all QC-passed cells (or singlets only) with all input genes, `.raw` and the SOLO calls.
+- If SOLO is missing any QC cell barcode, the run stops instead of silently dropping cells.
+
+In the QC summary, `n_genes_after_qc` and `n_genes_raw` are the number of preserved genes, `n_genes_solo_prefilter` the number after the SOLO gene prefilter, and `n_hvg` the number of genes SOLO was trained on. `.var["solo_gene_filter_pass"]` and `.var["highly_variable"]` mark the genes used for training. Older gene-filtered full files cannot recover the dropped genes; rerun QC from the original input.
+
+### SOLO score correction
+
+The SOLO CLI on our server saves the output of `predict(soft=True)` — already a probability — as `logit_scores` and then applies softmax again. After SOLO finishes, `scripts/correct_solo_scores.py` checks this relation and restores `softmax_scores` (and `solo_softmax_scores`) to the original doublet probability; `solo_doublet_probability` holds the same value.
+
+- `solo_logit_scores` keeps its old values for compatibility, but they are probabilities, not logits.
+- The old double-softmax values are kept in the `*_double_softmax_original` files and the `solo_double_softmax_scores_original` column.
+- The singlet / doublet calls themselves are unchanged.
+- The PDF plots written by the SOLO CLI show the uncorrected scores; this is recorded in `score_correction.json`.
+
 ## Requirements
 
 | Item | Location | Notes |
@@ -47,13 +69,24 @@ SOLO model settings are in `configs/solo_params.json` (`n_hidden` 384, `n_latent
 
 ### Containers
 
-Cell Ranger: download the tarball from the [10x Genomics download page](https://www.10xgenomics.com/support/software/cell-ranger/latest) (v10.0 at the time of writing) and package it:
+**Cell Ranger** cannot be redistributed (10x license), so each user downloads it once and the script packages it as a SIF:
+
+1. Open the [10x Genomics download page](https://www.10xgenomics.com/support/software/cell-ranger/downloads), fill in the form and accept the license (v10.0 at the time of writing).
+2. Copy the `wget` / `curl` command shown on the page. It contains a signed link that is valid for a limited time.
+3. Build the SIF with one of:
 
 ```bash
+# (a) pass the signed link: download + build in one step
+CELLRANGER_URL='<signed link copied from the 10x page>' bash def/build_containers.sh cellranger
+
+# (b) from a tarball you already downloaded with wget / curl
 CELLRANGER_TARBALL=/path/to/cellranger-10.0.0.tar.gz bash def/build_containers.sh cellranger
-# or from an extracted directory
+
+# (c) from an extracted Cell Ranger directory
 CELLRANGER_DIR=/path/to/cellranger-10.0.0 bash def/build_containers.sh cellranger
 ```
+
+Each writes `containers/cellranger.sif` and checks `cellranger --version`. Without any of these, the script tries the unsigned default link once, which 10x usually refuses, and then prints these instructions. If you already have Cell Ranger output (`raw_feature_bc_matrix.h5`), you can skip Cell Ranger with `start_step=cellbender`.
 
 The QC container (Scanpy / SOLO) — download the prebuilt image:
 
@@ -89,7 +122,7 @@ tar -xzf refdata-gex-GRCh38-2024-A.tar.gz
 
 ```bash
 git clone https://github.com/Junil-lab/KMAP.git
-cd KMAP/SCRNA/scRNAseq_QC_pipeline
+cd KMAP/SCRNA
 
 # containers (see Containers above), then
 bash setup.sh          # installs Java 17 if needed; checks nextflow / Singularity / SIFs; "All checks passed." means ready
@@ -198,27 +231,13 @@ More detail with example tables: [docs/scrnaseq_qc_pipeline_io_tools.html](docs/
 - **GPU**: CellBender and SOLO use `--nv`; pick the card per sample with `cuda_device` or for the whole run with `--cuda_device`.
 - **Cell Ranger license**: the Cell Ranger SIF is built locally from your own download and is not distributed with this repository.
 
-## Full input genes and AnnData.raw
+## Validation
 
-After cell QC (default `genes >= 200`, `counts >= 500`; plus `mt < 20%` if `--mt_threshold 20` is given) and **before any gene filtering**, the pipeline stores every input gene with `adata.raw = adata.copy()`. Here raw means the CellBender background-corrected counts used as input, not the uncorrected Cell Ranger counts.
+### Container test (2026-10-30)
 
-- `*_qc_full.h5ad`: cell QC only; all input genes in `.X`, `layers["counts"]` and `.raw`.
-- `*_qc_hvg*.h5ad`: the gene prefilter (`min_cells_gene`) and HVG selection are applied to this training copy only. `.X` / `layers["counts"]` hold the HVGs (used to train SOLO), `.raw` holds all input genes.
-- `*_qc_solo_annotated_full.h5ad` and `*_qc_solo_singlets_full.h5ad`: all QC-passed cells (or singlets only) with all input genes, `.raw` and the SOLO calls.
-- If SOLO is missing any QC cell barcode, the run stops instead of silently dropping cells.
+The QC container in release `scrna-qc-v2.0.0`, built from `def/scrnaseq_qc.def`, was run on the 10x PBMC 1k v3 filtered matrix (`start_step=qc`) next to the earlier lab image. Both gave 1,176 QC-passed cells, the same 2,000 HVGs, identical matrix values (`.X` and `.raw`), the same 44 doublet barcodes and identical SOLO scores.
 
-In the QC summary, `n_genes_after_qc` and `n_genes_raw` are the number of preserved genes, `n_genes_solo_prefilter` the number after the SOLO gene prefilter, and `n_hvg` the number of genes SOLO was trained on. `.var["solo_gene_filter_pass"]` and `.var["highly_variable"]` mark the genes used for training. Older gene-filtered full files cannot recover the dropped genes; rerun QC from the original input.
-
-## SOLO score correction
-
-The SOLO CLI on our server saves the output of `predict(soft=True)` — already a probability — as `logit_scores` and then applies softmax again. After SOLO finishes, `scripts/correct_solo_scores.py` checks this relation and restores `softmax_scores` (and `solo_softmax_scores`) to the original doublet probability; `solo_doublet_probability` holds the same value.
-
-- `solo_logit_scores` keeps its old values for compatibility, but they are probabilities, not logits.
-- The old double-softmax values are kept in the `*_double_softmax_original` files and the `solo_double_softmax_scores_original` column.
-- The singlet / doublet calls themselves are unchanged.
-- The PDF plots written by the SOLO CLI show the uncorrected scores; this is recorded in `score_correction.json`.
-
-## QC consistency checks (2026-10-24)
+### QC consistency checks (2026-10-24)
 
 Sample IDs must be unique and contain only letters, digits, dots, underscores or
 hyphens, starting with a letter or digit. QC and SOLO must contain exactly the same

@@ -1,62 +1,97 @@
-# KMAP PacBio IsoSeq: IsoQuant, isocall and FLAIR
+# PBLONGREADRNA — K-MAP PacBio long-read RNA (Iso-Seq) pipeline
 
-Nextflow DSL2 + Singularity workflow for full-length non-concatemer (FLNC) PacBio reads. Three discovery methods run from the same complete input samples. Each method's transcript models receive SQANTI3 structural QC, TD2/PSAURON ORF prediction and an HTML report. CCS generation, demultiplexing and FLNC preparation are upstream steps.
+A Nextflow (DSL2) + Singularity pipeline that takes one PacBio full-length non-concatemer (FLNC) BAM per sample, aligns it once with pbmm2, discovers transcripts with IsoQuant, isocall and FLAIR, and runs SQANTI3 structural QC, ORF prediction (TD2 / PSAURON) and an HTML report for every result. With two or more samples, isocall and FLAIR also build a joint cohort transcriptome. Reference: hg38 + GENCODE v45.
 
-```text
-FLNC BAM → pbmm2 ISOSEQ (once per sample) ┬→ IsoQuant → SQANTI3 + ORF + QC
-                                         ├→ isocall profile → merge → call → SQANTI3 + ORF + QC
-                                         └→ FLAIR transcriptome -b → SQANTI3 + ORF + QC
+<p align="center"><img src="../docs/img/pblongreadrna_pipeline.svg" alt="PBLONGREADRNA overview" width="900"></p>
+
+## How it works
+
+```
+FLNC BAM (one BAM per sample; CCS, demultiplexing and FLNC preparation are upstream)
+  │
+  ├─ 01 PBMM2 (ISOSEQ)   alignment to hg38, once per sample, shared by all callers
+  ├─ 02 discovery        IsoQuant  /  isocall profile → call  /  FLAIR transcriptome
+  │     └─ cohort        isocall merge + call, FLAIR combine   * only with 2+ samples
+  ├─ 03 SQANTI3          structural QC of every transcript set
+  ├─ 04 ORF              TD2 / PSAURON, transcript and protein FASTA
+  └─ 05 report           HTML report per result + QC summary for all samples
 ```
 
-No input FASTQ/FASTA conversion or additional read alignment is performed. Transcript FASTA and predicted protein FASTA are retained as analysis outputs.
+No FASTQ/FASTA conversion or extra read alignment is done; transcript and protein FASTA are kept as outputs.
 
-For multiple input samples, additional cohort analyses run by default:
+### Choosing callers
 
-- FLAIR combines sample transcriptomes with their native read maps/counts and runs SQANTI3 on the combined GTF.
-- isocall jointly merges all sample profiles, calls a cohort transcriptome/count matrix, and runs SQANTI3 on the cohort GTF.
+`--methods` takes any comma-separated subset of `isoquant,isocall,flair` (default: all three). Unselected callers are not launched; the shared pbmm2 alignment still runs once per sample.
 
-Sample-level and cohort-level outputs are separate. Cohort QC rows describe the joint transcriptome, not the transcriptome of an individual sample. The isocall `prep-isoforms` annotation is prepared once and shared. Its sample-level calls use one profile each; cohort calls use all profiles.
-
-## Requirements and setup
-
-Linux, Bash, Python 3, Singularity, Java 17+, and these images:
-
-| Image in `containers/` | Contents |
+| Request | Options |
 |---|---|
-| `kmap_isoseq_main.sif` | pbmm2, samtools, IsoQuant, QC scripts' Python |
-| `kmap_isoseq_discovery.sif` | isocall 1.3.0, FLAIR 3.0.0+master at pinned commit, minimap2/samtools |
-| `sqanti3_v6.0.1.sif` | Official SQANTI3 6.0.1 image, pinned OCI digest; TD2/PSAURON and R reporting |
+| All three, independent samples | `--analysis_mode single` |
+| IsoQuant only | `--methods isoquant --analysis_mode single` |
+| isocall only, joint calling | `--methods isocall --analysis_mode multi` |
+| FLAIR only, independent samples | `--methods flair --analysis_mode single` |
+| isocall + FLAIR, joint calling | `--methods isocall,flair --analysis_mode multi` |
+| All three, sample + cohort outputs | `--analysis_mode both` |
+
+### Single-sample and multi-sample modes
+
+`--analysis_mode` sets the scope of isocall / FLAIR. IsoQuant is always per sample.
+
+| Mode | Per-sample calls and SQANTI3 | Cohort calls and SQANTI3 |
+|---|---|---|
+| `auto` (default) | yes | yes when there are 2+ samples and `--run_cohort true` |
+| `single` | yes, for every row in the CSV | no |
+| `multi` | no final per-sample SQANTI3 | yes; needs 2+ samples |
+| `both` | yes | yes; needs 2+ samples |
+
+- In `multi`, FLAIR still builds each sample transcriptome before `combine`, and isocall builds each sample profile before the joint call; these intermediate outputs are published. Cohort count outputs keep one column per sample.
+- To run a single sample, give a one-row CSV. Explicit modes override `--run_cohort`.
+- Use a separate `--outdir` for each mode so files from another mode are not mistaken for current outputs.
+
+## Requirements
+
+| Item | Location | Notes |
+|---|---|---|
+| Java 17+ | system, or **installed automatically** by `setup.sh` | Nextflow 26.04.3 is pinned and downloaded by `setup.sh` |
+| Singularity / Apptainer, Python 3 | system | |
+| `containers/kmap_isoseq_main.sif` | [GitHub Release `isoseq-v1.0.0`](https://github.com/Junil-lab/KMAP/releases/tag/isoseq-v1.0.0) | pbmm2 26.1.99, samtools, IsoQuant 3.13.1, QC scripts |
+| `containers/kmap_isoseq_discovery.sif` | GitHub Release `isoseq-v1.0.0` | isocall 1.3.0, FLAIR 3.0.0 (pinned commit + patch), minimap2, samtools |
+| `containers/sqanti3_v6.0.1.sif` | official SQANTI3 image, **fetched by `setup.sh`** | SQANTI3 6.0.1 (pinned digest), TD2 / PSAURON, R reporting |
+| `resources/ref/hg38.fa` (+ `.fai`), `gencode.v45.annotation.gtf` | user supplied (see [Reference](#reference)) | optional: polyA motifs, polyA atlas BED, CAGE peaks |
+
+### Containers
 
 ```bash
-bash setup.sh
-# Installs Java 17 locally if needed, uses pinned Nextflow 26.04.3,
-# fetches a missing official SQANTI3 SIF, then checks references and tools.
+bash setup.sh --download-containers --release-tag isoseq-v1.0.0   # main + discovery from the release, SQANTI3 from its official image
 ```
 
-References default to hg38 FASTA + `.fai`, GENCODE v45 GTF, and optional human polyA/CAGE annotations. See `resources/ref/README.md`. Paths can be overridden using `--genome_fa`, `--gencode_gtf`, `--main_sif`, `--discovery_sif`, `--sqanti3_sif`, or a Nextflow `-c` config. Explicitly configured missing files stop validation. Missing default optional annotations are omitted; disable one with `--cage_peak_bed false`.
+- `bash setup.sh` alone fetches SQANTI3 if missing and checks everything; `--no-download-sqanti3` checks local files only; `--assets-dir /path` uses already downloaded release assets.
+- To build the KMAP images yourself: `bash def/build_containers.sh` (or `bash def/build_containers.sh discovery --rebuild`). A rebuild backs up the previous image.
+- FLAIR's upstream commit and the local patch for empty / no-SQ SAM streams are in `def/kmap_isoseq_discovery.def` and `def/patches/`.
+- Exact sources, asset names and offline installation: [docs/container_releases.md](docs/container_releases.md).
 
-For a fresh Git checkout, prepare reference files and the KMAP main/discovery
-images. `bash setup.sh` automatically downloads and converts the tested official
-SQANTI3 image if missing; no SQANTI3 release upload or manual split-file assembly
-is needed. `bash setup.sh --download-containers --release-tag isoseq-v1.0.0`
-fetches the other two images from the dedicated KMAP RNA release.
-Use `--no-download-sqanti3` to check local files without fetching that image.
-See [container instructions](docs/container_releases.md) for exact sources, asset
-names, offline installation and release packaging. The existing WGS release is
-not an RNA release.
+### Reference
 
-Container building/rebuilding:
+Put the files in `resources/ref/` (local files or symlinks; see [resources/ref/README.md](resources/ref/README.md)):
+
+- `hg38.fa` and `hg38.fa.fai` (`samtools faidx hg38.fa`), `gencode.v45.annotation.gtf` — genome and GTF must use the same contig names.
+- Optional: `polyA_motifs.human.txt`, `atlas.clusters.2.0.GRCh38.96.chr.bed`, `hg38_fair+new_CAGE_peaks_phase1and2.bed`. Missing optional files are skipped; disable one with e.g. `--cage_peak_bed false`.
+- Other locations: `--genome_fa`, `--gencode_gtf` or a `-c` config. An explicitly set path that does not exist stops the run.
+
+## Running
+
+### 1. Check the environment (once)
 
 ```bash
-bash def/build_containers.sh
-bash def/build_containers.sh discovery --rebuild
+git clone https://github.com/Junil-lab/KMAP.git
+cd KMAP/PBLONGREADRNA
+
+# references in resources/ref/ (see Reference above), then
+bash setup.sh --download-containers --release-tag isoseq-v1.0.0   # installs Java 17 / Nextflow if needed, fetches containers, checks everything
 ```
 
-A successful KMAP image rebuild backs up the prior image. SQANTI3 is fetched from upstream; its existing SIF is preserved. FLAIR's upstream commit and the local patch required for empty/no-SQ SAM streams are recorded in `def/kmap_isoseq_discovery.def` and `def/patches/`. The patch reproduces the existing lab installation's fix. Code/reference paths inside tasks are staged or configurable; no lab server path is required by the distribution source.
+### 2. Write a samplesheet
 
-## Input and running
-
-Copy `input/samples.example.csv` to a local CSV:
+Copy `input/samples.example.csv` and fill it in.
 
 ```csv
 sample_id,flnc_bam,tissue
@@ -64,51 +99,73 @@ SampleA,/data/SampleA/flnc.bam,lung
 SampleB,/data/SampleB/flnc.bam,kidney
 ```
 
-All three columns are required. IDs must be unique, start with a letter/digit, and contain only letters/digits/`_`/`-`/`.`. Blank tissue becomes `NA`. Relative BAM paths resolve from the CSV directory. Standard CSV quoting, UTF-8 BOM and Windows line endings are supported.
+| Column | Value |
+|---|---|
+| `sample_id` | unique; letters, digits, `_`, `-`, `.`; starts with a letter or digit |
+| `flnc_bam` | FLNC BAM; relative paths are resolved from the CSV's folder |
+| `tissue` | free text; empty becomes `NA` |
+
+Standard CSV quoting, UTF-8 BOM and Windows line endings are accepted.
+
+### 3. Run
 
 ```bash
-# All three methods, all input reads, plus cohort analysis when there are >1 samples:
-bash run.sh --samplesheet input/samples.csv --threads 16 --check-only
-bash run.sh --samplesheet input/samples.csv --threads 16
-bash run.sh --samplesheet input/samples.csv --threads 16 -resume
+bash run.sh --samplesheet input/samples.csv --threads 16 --check-only   # validate inputs and containers only
+bash run.sh --samplesheet input/samples.csv --threads 16 --outdir /path/to/results
 
-# Select a method; disable additional cohort analyses:
-bash run.sh --samplesheet input/samples.csv --methods isoquant
-bash run.sh --samplesheet input/samples.csv --methods isocall,flair --run_cohort false
-
-# Cluster-specific config; default SLURM queue is cpu:
-bash run.sh --samplesheet input/samples.csv -profile slurm -c cluster.config
+# common options
+#   -resume                      continue from where it stopped (reuses the cache)
+#   --methods isoquant,isocall,flair   callers to run (see Choosing callers)
+#   --analysis_mode auto|single|multi|both
+#   --run_cohort false           no cohort analysis in auto mode
+#   -profile slurm -c cluster.config   SLURM (default queue: cpu)
+#   export NXF_WORK=/fast/local/disk/work   # intermediate files (default: <pipeline folder>/.nf_work)
 ```
 
-`--threads` is a per-task CPU request, not a cap on the entire workflow. Set `executor.cpus`, `executor.memory`, and/or `process.maxForks` in a local config to control total concurrent use. `NXF_WORK` or `-work-dir` sets intermediates; `--outdir` sets published results. Resume requires the original working directory's `.nextflow/` cache and retained work files. JSON params files are supported; YAML additionally requires PyYAML on the launch host.
+`--threads` is the CPU request per task, not a limit for the whole run. To cap total use, set `executor.cpus`, `executor.memory` or `process.maxForks` in a local config (`-c`). On a shared server, also limit the cores: `taskset -c 0-4 bash run.sh ... --threads 5`.
+
+### Disk use and clean-up
+
+Nextflow keeps every intermediate file in the work directory (`.nf_work/` or `$NXF_WORK`), and results are published to `--outdir`. `-resume` needs that work directory and the `.nextflow/` cache of the original launch folder. After checking the results, free the space with `./nextflow clean -f` or by removing the work directory (after which `-resume` no longer works).
 
 ## Outputs
 
-```text
+```
 <outdir>/samples/<sample_id>/
-├── alignment/pbmm2/                  # shared alignment for all three methods
+├── alignment/pbmm2/                     shared alignment for all three callers
 ├── isoquant/{discovery,sqanti3}/
 ├── isocall/{profile,discovery,sqanti3}/
 └── flair/{discovery,sqanti3}/
-<outdir>/cohort/
+<outdir>/cohort/                         only with 2+ samples
 ├── isocall/{discovery,sqanti3}/
 └── flair/{discovery,sqanti3}/
 <outdir>/reference/isocall/known_isoforms.gz
-<outdir>/qc_summary/                   # per-method CSVs and complete qc_summary.csv
-<outdir>/pipeline_info/                # trace, timeline, report, run logs
+<outdir>/qc_summary/                     per-method CSVs and qc_summary.csv
+<outdir>/pipeline_info/                  trace, timeline, report, run logs
 ```
 
-Output layout changed from the prior IsoQuant-only version; that code is preserved under local `backups/`.
+### What each folder contains
 
-IsoQuant's `*.discovered_transcript_counts.tsv` / `*.discovered_transcript_tpm.tsv` correspond to `*.transcript_models.gtf` (known + novel models). `*.transcript_counts.tsv` / `*.transcript_tpm.tsv` are reference-only. The sample subdirectory produced by IsoQuant is retained inside `discovery/`.
+| Folder | File | Values |
+|---|---|---|
+| `alignment/pbmm2` | aligned BAM + flagstat | FLNC reads aligned to hg38 (ISOSEQ preset) |
+| `isoquant/discovery` | `*.transcript_models.gtf` | known + novel transcript models |
+| | `*.discovered_transcript_counts.tsv`, `*.discovered_transcript_tpm.tsv` | counts / TPM for the models above (`*.transcript_counts.tsv` / `*.transcript_tpm.tsv` are reference transcripts only) |
+| `isocall/{profile,discovery}` | per-sample profile, transcript GTF, count matrix | isocall's native counts |
+| `flair/discovery` | transcriptome GTF / FASTA, `*.isoform.counts.txt` | FLAIR `transcriptome` read counts (no separate `quantify` realignment) |
+| `cohort/{isocall,flair}` | joint transcriptome + count matrix | one column per sample |
+| `*/sqanti3` | classification table, ORF / protein FASTA, HTML report | SQANTI3 structural categories (FSM, ISM, NIC, NNC, …), TD2 / PSAURON ORFs |
+| `qc_summary/qc_summary.csv` | | one row per sample × method and per cohort result: scope, sample, method, tissue, alignment totals / rate, SQANTI3 categories |
+| `pipeline_info/` | | run time and memory per step |
 
-FLAIR retains native `transcriptome` read counts (`*.isoform.counts.txt`) and cohort combine counts. Separate `quantify` realignment is not run. isocall produces its native count matrix. Counts across different discovery methods are not directly interchangeable.
+## Notes
 
-QC contains `scope`, `sample_id`, `method`, tissue, alignment totals/rate and SQANTI3 categories. Cohort alignment counts sum all participating sample flagstats. Mapping rate counts mapped alignment records, including QC-passed and QC-failed records; it is not a deduplicated molecule/primary-read metric.
+- **Counts between callers** are not interchangeable: IsoQuant, isocall and FLAIR each report their own native counts.
+- **Mapping rate** counts mapped alignment records (QC-passed and QC-failed); it is not a deduplicated molecule count. Cohort alignment counts sum the participating samples.
+- **Failures**: core tasks retry twice, then stop the run; QC errors stop immediately. The final QC requires every expected sample × method row and every enabled cohort row. A protein FASTA may be absent when no coding isoforms are predicted; HTML reports are always required.
+- **Reference data** are not distributed with the code; record their source URLs and checksums for each study.
 
-Core task failures retry up to twice, then terminate. QC errors terminate immediately. Final QC requires every expected sample × method row and enabled cohort row. A protein FASTA is optional when no coding isoforms are predicted; HTML reports are required.
-
-## Verification
+## Validation
 
 ```bash
 python3 -m unittest discover -s tests -p 'test_*.py' -v
@@ -117,70 +174,15 @@ bash tests/run_selection_matrix.sh test_runs/smoke
 bash tests/run_single_example.sh test_runs/smoke
 ```
 
-The smoke test generates a synthetic 100 kb reference and two samples with 408 FLNC reads each. It exercises all three discovery methods, sample-level quantification, cohort combine/joint calling, SQANTI3/ORF/HTML, optional polyA/CAGE annotations and sample-complete QC. Results are isolated under `test_runs/`.
+The smoke test builds a synthetic 100 kb reference and two samples with 408 FLNC reads each, and runs all three callers, cohort analysis, SQANTI3 / ORF / HTML, optional polyA / CAGE annotations and the sample-complete QC. The selection matrix checks all seven caller subsets in `single` mode, each cohort-capable caller in `multi`, and `multi` / `both` together. These are functional tests on synthetic reads, not biological accuracy or human-scale runtime tests.
 
-This checks functional execution, not biological accuracy or human-dataset runtime/memory requirements. SIFs, study inputs, reference data, results, local runtimes, work files and backups are excluded from Git. The real study sample list is local; `input/samples.example.csv` is the public template.
-
-## Full-sample runtime benchmark
+Runtime of one full sample:
 
 ```bash
 python3 benchmarks/run_sample.py --samplesheet input/samples.csv \
-    --sample 25_CMC-R_1 --threads 16 --outdir test_runs/full_sample_run
+    --sample <sample_id> --threads 16 --outdir test_runs/full_sample_run
 ```
 
-This selects one complete sample and creates a separate samplesheet and fresh output/work directories. It runs all three methods without `-resume` and limits the local executor to one task at a time. Timing results are written to `benchmark_results.json`, with live state in `benchmark_status.json` and logs in `benchmark.log`.
+It runs all three callers without `-resume`, one task at a time, and writes timings to `benchmark_results.json` (input / alignment, discovery, SQANTI3 / ORF / report, and total wall time).
 
-The report separates input/alignment, discovery/quantification, and SQANTI3/ORF/report generation. The single pbmm2 alignment is shared by all three methods; that cost is included in each independent route total, and the full workflow wall time is also reported. Per-route active times exclude scheduler waits. Tool installation/container build time is excluded. The output directory must be new, to prevent inadvertent cache/output reuse.
-
-## Single-sample and multi-sample analysis modes
-
-Use `--analysis_mode` to select the FLAIR/isocall analysis scope:
-
-| Mode | Independent sample calls and SQANTI3 | Cohort calls and SQANTI3 |
-| --- | --- | --- |
-| `single` | Yes, for every row in the CSV | No |
-| `multi` | No final sample-level SQANTI3 | Yes; requires at least two samples |
-| `both` | Yes | Yes; requires at least two samples |
-| `auto` (default) | Yes | Enabled for multiple samples when `--run_cohort true` |
-
-```bash
-bash run.sh --samplesheet input/samples.csv --methods isocall,flair --analysis_mode single --outdir results/single
-bash run.sh --samplesheet input/samples.csv --methods isocall,flair --analysis_mode multi --outdir results/multi
-bash run.sh --samplesheet input/samples.csv --methods isocall,flair --analysis_mode both --outdir results/both
-```
-
-`single` can process several samples independently; to run just one sample, supply a one-row CSV. Explicit modes override the legacy `run_cohort` setting. IsoQuant remains sample-level in every mode if selected; multi/both require at least one of FLAIR/isocall.
-
-In `multi`, FLAIR still builds each sample transcriptome/read map before `combine`; these intermediate discovery outputs remain published. isocall builds each sample profile, merges all profiles and calls only the joint transcriptome. Both methods retain sample counts in their cohort count outputs. FLAIR combine counts use native read maps; no separate quantify realignment is added. Only selected final scopes enter SQANTI3 and the merged QC summary.
-
-Use a separate output directory for each mode so that files from a previous mode are not mistaken for current outputs. Keep the Nextflow work/cache directories and add `-resume` when resuming the same run.
-
-## Tool selection quick reference
-
-The default `--methods isoquant,isocall,flair` runs all three tools. Supply one
-name or any comma-separated subset to run only those tools. Each selected final
-transcriptome goes through SQANTI3, ORF prediction and QC. No unselected caller
-is launched. Shared pbmm2 alignment runs once per input sample.
-
-| Request | Options |
-| --- | --- |
-| All three, independent samples | `--analysis_mode single` |
-| IsoQuant only | `--methods isoquant --analysis_mode single` |
-| isocall only, joint calling | `--methods isocall --analysis_mode multi` |
-| FLAIR only, independent samples | `--methods flair --analysis_mode single` |
-| isocall + FLAIR, joint calling | `--methods isocall,flair --analysis_mode multi` |
-| All three, sample + cohort outputs | `--analysis_mode both` |
-
-The scope option applies jointly to selected isocall/FLAIR branches. IsoQuant
-always remains per sample, including when selected alongside a multi-mode tool.
-`multi` and `both` require at least two CSV rows and at least one of isocall/FLAIR.
-The NAS-local `input/sample1.csv` selects study sample 10 and should use `single`
-or `auto`. Public checkouts contain the generic `input/samples.example.csv`;
-study sample lists and absolute NAS paths are not published.
-
-The selection matrix reuses the synthetic smoke test's retained cache and checks
-all seven nonempty caller subsets in single mode, each cohort-capable caller in
-multi mode, and joint multi/both modes. Trace checks reject unselected callers;
-QC rows, protein FASTA, HTML reports and cohort count headers are verified.
-
-Official-image compatibility results: [SQANTI3 validation](docs/official_sqanti3_validation_20261026.md).
+Validation reports: [docs/validation.md](docs/validation.md), [official SQANTI3 image](docs/official_sqanti3_validation_20261026.md).
