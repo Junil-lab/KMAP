@@ -38,27 +38,12 @@ Every module follows the same pattern: **one samplesheet in, one command to run,
 | **Reference** | GRCh38 from NCBI (+ index); TRGT catalog, sex BEDs and CpG islands are in the repo | 10x `refdata-gex` download | hg38 + GENCODE v45 (see `resources/ref/`) |
 | **Java 17 / Nextflow** | ✅ installed by `setup.sh` | ✅ installed by `setup.sh` | ✅ installed by `setup.sh` |
 | **Lab-server paths in the code** | ✅ none | ✅ none | ✅ none |
-| **Example data** | ✅ HG002 chr20/X/Y (download script + expected outputs) | ❌ | ❌ |
 
 ---
 
 ## PBLONGREADWGS at a glance
 
-```mermaid
-flowchart TB
-    A[HiFi BAM + sex XX/XY] --> J{5mC tags?}
-    J -- no --> B0[01 Jasmine<br/>5mC from kinetics]
-    J -- yes --> B[02 pbmm2<br/>align to GRCh38]
-    B0 --> B
-    B --> C[03 DeepVariant<br/>SNV / indel]
-    B --> D[04 Sawfish<br/>SV / CNV]
-    B --> E[05 TRGT<br/>tandem repeats]
-    C & D & E --> F[06 HiPhase<br/>joint phasing]
-    F --> G[07 pb-CpG-tools<br/>CpG, hap1 / hap2]
-    F --> M[07b MethBat<br/>5mC / 5hmC / 6mA]
-    F --> H[(phased VCFs<br/>haplotagged BAM)]
-    G --> Q[QC summary]
-```
+<p align="center"><img src="docs/img/pblongreadwgs_pipeline.svg" alt="pblongreadwgs_pipeline overview" width="900"></p>
 
 | Step | Tool | Version |
 |---|---|---|
@@ -80,17 +65,7 @@ The tool set mirrors PacBio's official [HiFi-human-WGS-WDL](https://github.com/P
 
 ## PBLONGREADRNA at a glance
 
-```mermaid
-flowchart TB
-    A[FLNC BAM per sample] --> B[pbmm2 ISOSEQ<br/>align once per sample]
-    B --> I1[IsoQuant]
-    B --> I2[isocall<br/>profile + call]
-    B --> I3[FLAIR<br/>transcriptome]
-    I1 & I2 & I3 --> S[SQANTI3 QC<br/>+ ORF: TD2 / PSAURON]
-    I2 & I3 -. 2+ samples .-> C[cohort transcriptome<br/>isocall / FLAIR]
-    C --> S
-    S --> R[HTML report<br/>+ QC summary]
-```
+<p align="center"><img src="docs/img/pblongreadrna_pipeline.svg" alt="pblongreadrna_pipeline overview" width="900"></p>
 
 | Step | Tool | Version |
 |---|---|---|
@@ -107,19 +82,7 @@ Choose callers with `--methods isoquant,isocall,flair`; with more than one sampl
 
 ## SCRNA at a glance
 
-```mermaid
-flowchart TB
-    A[10x FASTQ] --> B[01 Cell Ranger<br/>count matrix]
-    B --> C[02 CellBender<br/>ambient RNA removal]
-    C --> D[03 Scanpy QC<br/>cell QC, all genes kept]
-    D --> E[04 SOLO<br/>doublet scores]
-    E --> F[05 singlet filter]
-    D --> F
-    F --> G[(singlet H5AD<br/>all genes + raw)]
-    F --> Q[06 QC summary]
-    X[raw H5] -. start_step=cellbender .-> C
-    Y[CellBender H5] -. start_step=qc .-> D
-```
+<p align="center"><img src="docs/img/scrna_pipeline.svg" alt="scrna_pipeline overview" width="900"></p>
 
 | Step | Tool | Version |
 |---|---|---|

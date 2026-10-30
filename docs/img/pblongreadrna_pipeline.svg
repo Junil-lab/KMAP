@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="780" viewBox="0 0 1100 780"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#475569"/></marker></defs><rect x="0" y="0" width="1100" height="780" rx="10" fill="#ffffff" stroke="#d0d7de"/><rect x="910" y="20" width="170" height="76" fill="#ffffff" stroke="#e5e7eb"/>
+<rect x="922" y="32" width="14" height="14" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.5"/>
+<rect x="922" y="32" width="4" height="14" fill="#2a9d8f"/>
+<text x="944" y="43" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" fill="#4b5563" text-anchor="start">Pipeline step</text>
+<rect x="922" y="52" width="14" height="14" fill="#ffffff" stroke="#ee8a2a" stroke-width="1.5"/>
+<rect x="922" y="52" width="4" height="14" fill="#ee8a2a"/>
+<text x="944" y="63" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" fill="#4b5563" text-anchor="start">Final output</text>
+<rect x="922" y="72" width="14" height="14" fill="#ffffff" stroke="#6b7280" stroke-width="1.5"/>
+<rect x="922" y="72" width="4" height="14" fill="#6b7280"/>
+<text x="944" y="83" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="normal" fill="#4b5563" text-anchor="start">Input / reference</text>
+<rect x="395.0" y="24" width="310" height="59" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.6"/>
+<rect x="395.0" y="24" width="6" height="59" fill="#2a9d8f"/>
+<text x="411.0" y="40" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f7a6f" text-anchor="start">00</text>
+<text x="411.0" y="58" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">FLNC BAM</text>
+<text x="411.0" y="75" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">{sample_id} FLNC BAM, one per sample</text>
+<rect x="468.5" y="101" width="163.0" height="22" rx="11" fill="#eef2f7" stroke="#cbd5e1"/>
+<text x="550" y="116" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#334155" text-anchor="middle">pbmm2 (ISOSEQ preset)</text>
+<rect x="30.0" y="90" width="290" height="59" fill="#ffffff" stroke="#6b7280" stroke-width="1.6"/>
+<rect x="30.0" y="90" width="6" height="59" fill="#6b7280"/>
+<text x="46.0" y="106" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#6b7280" text-anchor="start">ref</text>
+<text x="46.0" y="124" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">hg38 + GENCODE v45</text>
+<text x="46.0" y="141" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#4b5563" text-anchor="start">genome FASTA + annotation GTF</text>
+<path d="M 320.0 112 L 465 112" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<path d="M 550 83 L 550 101" fill="none" stroke="#475569" stroke-width="1.5"/>
+<path d="M 550 123 L 550 140" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="395.0" y="142" width="310" height="59" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.6"/>
+<rect x="395.0" y="142" width="6" height="59" fill="#2a9d8f"/>
+<text x="411.0" y="158" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f7a6f" text-anchor="start">01</text>
+<text x="411.0" y="176" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Aligned BAM</text>
+<text x="411.0" y="193" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">alignment/pbmm2/ (shared by all callers)</text>
+<path d="M 550 201 L 550 245" fill="none" stroke="#475569" stroke-width="1.5"/>
+<path d="M 190 245 L 910 245" fill="none" stroke="#475569" stroke-width="1.5"/>
+<rect x="154.0" y="215" width="72.0" height="22" rx="11" fill="#eef2f7" stroke="#cbd5e1"/>
+<text x="190" y="230" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#334155" text-anchor="middle">IsoQuant</text>
+<path d="M 190 245 L 190 278" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="447.5" y="215" width="65.0" height="22" rx="11" fill="#eef2f7" stroke="#cbd5e1"/>
+<text x="480" y="230" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#334155" text-anchor="middle">isocall</text>
+<path d="M 550 245 L 550 278" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="884.5" y="215" width="51.0" height="22" rx="11" fill="#eef2f7" stroke="#cbd5e1"/>
+<text x="910" y="230" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#334155" text-anchor="middle">FLAIR</text>
+<path d="M 910 245 L 910 278" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="40.0" y="280" width="300" height="59" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.6"/>
+<rect x="40.0" y="280" width="6" height="59" fill="#2a9d8f"/>
+<text x="56.0" y="296" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f7a6f" text-anchor="start">02a</text>
+<text x="56.0" y="314" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">IsoQuant transcripts</text>
+<text x="56.0" y="331" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">isoquant/discovery/</text>
+<rect x="400.0" y="280" width="300" height="59" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.6"/>
+<rect x="400.0" y="280" width="6" height="59" fill="#2a9d8f"/>
+<text x="416.0" y="296" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f7a6f" text-anchor="start">02b</text>
+<text x="416.0" y="314" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">isocall transcripts</text>
+<text x="416.0" y="331" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">isocall/{profile,discovery}/</text>
+<rect x="760.0" y="280" width="300" height="59" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.6"/>
+<rect x="760.0" y="280" width="6" height="59" fill="#2a9d8f"/>
+<text x="776.0" y="296" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f7a6f" text-anchor="start">02c</text>
+<text x="776.0" y="314" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">FLAIR transcripts</text>
+<text x="776.0" y="331" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">flair/discovery/</text>
+<rect x="605.0" y="400" width="250" height="74" fill="#ffffff" stroke="#2a9d8f" stroke-width="1.6" stroke-dasharray="5 4"/>
+<rect x="605.0" y="400" width="6" height="74" fill="#2a9d8f"/>
+<text x="621.0" y="416" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#1f7a6f" text-anchor="start">only with 2+ samples</text>
+<text x="621.0" y="434" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Cohort transcriptome</text>
+<text x="621.0" y="451" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">cohort/isocall, cohort/flair</text>
+<text x="621.0" y="466" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#1f7a6f" text-anchor="start">joint merge across samples</text>
+<path d="M 550 339 L 550 380 L 645.0 380 L 645.0 398" fill="none" stroke="#475569" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<path d="M 910 339 L 910 380 L 815.0 380 L 815.0 398" fill="none" stroke="#475569" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<path d="M 190 339 L 190 545" fill="none" stroke="#475569" stroke-width="1.5"/>
+<path d="M 430 339 L 430 545" fill="none" stroke="#475569" stroke-width="1.5"/>
+<path d="M 1030 339 L 1030 545" fill="none" stroke="#475569" stroke-width="1.5"/>
+<path d="M 730 474 L 730 545" fill="none" stroke="#475569" stroke-width="1.5"/>
+<path d="M 190 545 L 1030 545" fill="none" stroke="#475569" stroke-width="1.5"/>
+<rect x="415.0" y="534" width="270" height="22" rx="11" fill="#eef2f7" stroke="#cbd5e1"/>
+<text x="550" y="549" font-family="Helvetica, Arial, sans-serif" font-size="11.5" font-weight="bold" fill="#334155" text-anchor="middle">SQANTI3 QC + ORF (TD2 / PSAURON)</text>
+<path d="M 190 545 L 190 598" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<path d="M 550 556 L 550 598" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<path d="M 910 545 L 910 598" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+<rect x="40.0" y="600" width="300" height="74" fill="#ffffff" stroke="#ee8a2a" stroke-width="1.6"/>
+<rect x="40.0" y="600" width="6" height="74" fill="#ee8a2a"/>
+<text x="56.0" y="616" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#c96a12" text-anchor="start">03</text>
+<text x="56.0" y="634" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Sample results</text>
+<text x="56.0" y="651" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#c96a12" text-anchor="start">samples/&lt;id&gt;/&lt;method&gt;/sqanti3/</text>
+<text x="56.0" y="666" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#c96a12" text-anchor="start">classification, ORF / protein FASTA</text>
+<rect x="400.0" y="600" width="300" height="74" fill="#ffffff" stroke="#ee8a2a" stroke-width="1.6"/>
+<rect x="400.0" y="600" width="6" height="74" fill="#ee8a2a"/>
+<text x="416.0" y="616" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#c96a12" text-anchor="start">04</text>
+<text x="416.0" y="634" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Cohort results</text>
+<text x="416.0" y="651" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#c96a12" text-anchor="start">cohort/&lt;method&gt;/sqanti3/</text>
+<text x="416.0" y="666" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#c96a12" text-anchor="start">joint transcriptome + counts</text>
+<rect x="760.0" y="600" width="300" height="74" fill="#ffffff" stroke="#ee8a2a" stroke-width="1.6"/>
+<rect x="760.0" y="600" width="6" height="74" fill="#ee8a2a"/>
+<text x="776.0" y="616" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#c96a12" text-anchor="start">05</text>
+<text x="776.0" y="634" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#1f2937" text-anchor="start">Reports and QC summary</text>
+<text x="776.0" y="651" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#c96a12" text-anchor="start">HTML report per method</text>
+<text x="776.0" y="666" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="normal" fill="#c96a12" text-anchor="start">qc_summary/qc_summary.csv</text>
+<text x="30" y="735" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#4b5563" text-anchor="start">Choose callers with --methods isoquant,isocall,flair. Cohort steps run only when the samplesheet has 2 or more samples</text>
+<text x="30" y="755" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#4b5563" text-anchor="start">(--run_cohort false to skip). IsoQuant always runs per sample.</text></svg>
